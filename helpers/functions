@@ -82,6 +82,7 @@ emit_config_interface() {
   local interface_privatekey=$(require_value "$interface_config" "PrivateKey")
   local interface_address=$(get_value "$interface_config" "Address")
   local interface_listenport=$(get_value "$interface_config" "ListenPort")
+  local interface_default_gateway=$(get_value "$interface_config" "DefaultGateway")
 
   if [[ -z "$interface_address" ]]; then
     interface_address=$(alloc_address "$interface_address" "$start_ip" "$end_ip")
@@ -94,6 +95,10 @@ emit_config_interface() {
   fi
   if [[ -n "$interface_listenport" ]]; then
     echo "ListenPort=$interface_listenport"
+  fi
+  if [[ -n "$interface_default_gateway" ]]; then
+    echo "PostUp = sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+    echo "PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
   fi
 
   echo

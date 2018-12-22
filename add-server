@@ -29,4 +29,5 @@ Address="$Address"
 StartIp="$StartIp"
 EndIp="$EndIp"
 ListenPort="51820"
+DefaultGateway=
 EOF
