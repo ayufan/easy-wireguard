@@ -18,10 +18,12 @@ fi
 
 PrivateKey=$(wg genkey)
 PublicKey=$(echo "$PrivateKey" | wg pubkey)
+PresharedKey=$(wg genpsk)
 
 cat <<EOF > clients/$1.conf
 PrivateKey="$PrivateKey"
 PublicKey="$PublicKey"
+PresharedKey="$PresharedKey"
 PersistentKeepalive=25
 Routes=""
 EOF

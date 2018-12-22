@@ -16,8 +16,9 @@ if [[ -e "servers/$1.conf" ]]; then
   exit 1
 fi
 
-PrivateKey=$(wg genkey)
-PublicKey=$(echo "$PrivateKey" | wg pubkey)
+PrivateKey="$(wg genkey)"
+PublicKey="$(echo "$PrivateKey" | wg pubkey)"
+PresharedKey="$(wg genpsk)"
 Endpoint="$2"
 Address="$3"
 StartIp="$4"
@@ -26,11 +27,12 @@ EndIp="$5"
 cat <<EOF > servers/$1.conf
 PrivateKey="$PrivateKey"
 PublicKey="$PublicKey"
+PresharedKey="$PresharedKey"
 Endpoint="$Endpoint"
 Address="$Address"
 StartIp="$StartIp"
 EndIp="$EndIp"
 ListenPort="$DEFAULT_LISTEN_PORT"
-DNS=1.1.1.1,1.0.0.1
-DefaultGateway=
+DNS="1.1.1.1"
+DefaultGateway=""
 EOF

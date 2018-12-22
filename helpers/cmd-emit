@@ -2,6 +2,10 @@
 
 MODE=
 
+export WG_QUICK=yes
+export WG_OPENWRT=no
+export WG_DEFAULT_GW=no
+
 for arg; do
   case $arg in
     --qr)
@@ -29,9 +33,21 @@ for arg; do
       MODE=down
       ;;
 
+    --wg-quick)
+      shift
+      export WG_QUICK=yes
+      export WG_OPENWRT=no
+      ;;
+
+    --openwrt)
+      shift
+      export WG_QUICK=no
+      export WG_OPENWRT=yes
+      ;;
+
     --default)
       shift
-      export DEFAULT_GW=yes
+      export WG_DEFAULT_GW=yes
       ;;
 
     --ssh)
@@ -66,14 +82,33 @@ shell_emit() {
   $@
   echo "EOF"
   echo ""
-  echo "systemctl enable wg-quick@wg-${server_name}.service"
-  echo "systemctl restart wg-quick@wg-${server_name}.service"
+
+  if [[ "$WG_QUICK" == "yes" ]]; then
+    echo ""
+    echo "systemctl enable wg-quick@wg-${server_name}.service"
+    echo "systemctl restart wg-quick@wg-${server_name}.service"
+    echo ""
+  fi
+
+  if [[ "$WG_OPENWRT" == "yes" ]]; then
+    cat <<"EOF"
+cat <<WGEOF > /etc/hotplug.d/iface/99-wireguard
+  #!/bin/sh
+
+if [ "$ACTION" == "ifup" ] && [ -f "/etc/wireguard/$INTERFACE.conf" ]; then
+  /usr/bin/wg addconf "$INTERFACE" /etc/wireguard/$INTERFACE.conf
+fi
+WGEOF
+EOF
+    echo "chmod +x /etc/hotplug.d/iface/99-wireguard"
+    echo "ifup wg-${server_name}"
+  fi
 }
 
 config_file() {
   if [[ -n "$client_name" ]]; then
     mkdir -p "$(pwd)/configs/${client_name}"
-    if [[ -n "$DEFAULT_GW" ]]; then
+    if [[ -n "$WG_DEFAULT_GW" ]]; then
       echo "$(pwd)/configs/${client_name}/${server_name}def.conf"
     else
       echo "$(pwd)/configs/${client_name}/${server_name}.conf"
@@ -131,6 +166,89 @@ usage() {
   stderr " --up: wg-quick up"
   stderr " --down: wg-quick down"
   stderr " --ssh USER@HOST: upload ssh config to remove machine"
+  stderr " --wg-quick: output wg-quick compatible configuration"
+  stderr " --openwrt: output openwrt compatible configuration"
   stderr ""
   exit 1
+}
+
+emit_config_interface() {
+  local interface_config="$1"
+  local interface_name=$(basename "$interface_config" .conf)
+  local interface_privatekey=$(require_value "$interface_config" "PrivateKey")
+  local interface_address=$(get_value "$interface_config" "Address")
+  local interface_listenport=$(get_value "$interface_config" "ListenPort")
+  local interface_default_gateway=$(get_value "$interface_config" "DefaultGateway")
+  local interface_fwmark=$(get_value "$interface_config" "FwMark")
+
+  local peer_config="$2"
+  local peer_dns=$(get_value "$peer_config" "DNS")
+
+  if [[ -z "$interface_address" ]]; then
+    interface_address="$(alloc_address "$interface_name" "$start_ip" "$end_ip")/32"
+  fi
+
+  echo "[Interface]"
+  echo "PrivateKey=$interface_privatekey"
+  if [[ -n "$interface_fwmark" ]]; then
+    echo "FwMark=$interface_fwmark"
+  fi
+  if [[ "$WG_QUICK" == "yes" ]]; then
+    if [[ -n "$interface_address" ]]; then
+      echo "Address=$interface_address"
+    fi
+    if [[ -n "$interface_listenport" ]]; then
+      echo "ListenPort=$interface_listenport"
+    fi
+    if [[ -n "$interface_default_gateway" ]]; then
+      echo "PostUp = sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+      echo "PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+    fi
+    if [[ -n "$peer_dns" ]]; then
+      echo "DNS=$peer_dns"
+    fi
+  fi
+
+  echo
+}
+
+emit_config_peer() {
+  local peer_config="$1"
+  local interface_config="$2"
+
+  local peer_name=$(basename "$peer_config" .conf)
+  local peer_publickey=$(require_value "$peer_config" "PublicKey")
+  local peer_address=$(get_value "$peer_config" "Address")
+  local peer_routes=$(get_value "$peer_config" "Routes")
+  local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
+  local peer_endpoint=$(get_value "$peer_config" "Endpoint")
+  local peer_listenport=$(get_value "$peer_config" "ListenPort")
+  local peer_psk=$(get_value "$peer_psk" "PresharedKey")
+
+  if [[ -z "$peer_address" ]]; then
+    peer_address=$(alloc_address "$peer_name" "$start_ip" "$end_ip")
+  fi
+
+  echo "[Peer]"
+  echo "PublicKey=$peer_publickey"
+  if [[ -n "$peer_psk" ]]; then
+    echo "PresharedKey=$peer_psk"
+  fi
+  if [[ -n "$peer_endpoint" ]]; then
+    echo "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
+  fi
+  if [[ -n "$interface_keepalive" ]]; then
+    echo "PersistentKeepalive=$interface_keepalive"
+  fi
+  if [[ -n "$peer_address" ]]; then
+    echo "AllowedIPs=$peer_address"
+  fi
+  for route in $peer_routes; do
+    echo "AllowedIPs=$route"
+  done
+  if [[ -n "$WG_DEFAULT_GW" ]]; then
+    echo "AllowedIPs=0.0.0.0/0"
+  fi
+
+  echo
 }
