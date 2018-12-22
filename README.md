@@ -46,9 +46,9 @@ The:
 For each server follow the https://www.wireguard.com/install/:
 
 ```bash
-$ sudo add-apt-repository ppa:wireguard/wireguard
-$ sudo apt-get update
-$ sudo apt-get install wireguard
+sudo add-apt-repository ppa:wireguard/wireguard
+sudo apt-get update
+sudo apt-get install wireguard
 ```
 
 ## Configuring Server
