@@ -74,7 +74,7 @@ config_file() {
   if [[ -n "$client_name" ]]; then
     mkdir -p "$(pwd)/configs/${client_name}"
     if [[ -n "$DEFAULT_GW" ]]; then
-      echo "$(pwd)/configs/${client_name}/${server_name}-default.conf"
+      echo "$(pwd)/configs/${client_name}/${server_name}def.conf"
     else
       echo "$(pwd)/configs/${client_name}/${server_name}.conf"
     fi

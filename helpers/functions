@@ -146,7 +146,7 @@ emit_config_peer() {
     echo "AllowedIPs=$route"
   done
   if [[ -n "$DEFAULT_GW" ]]; then
-    echo "AllowedIPs=0/0"
+    echo "AllowedIPs=0.0.0.0/0"
   fi
 
   echo
