@@ -34,6 +34,12 @@ for arg; do
       export DEFAULT_GW=yes
       ;;
 
+    --ssh)
+      SSH_SERVER="$2"
+      shift 2
+      MODE=ssh
+      ;;
+
     --*)
       echo "unknown $arg."
       exit 1
@@ -88,6 +94,10 @@ up_emit() {
 
 down_emit() {
   wg_quick_emit "down" "$@"
+}
+
+ssh_emit() {
+  ( echo "set -x"; shell_emit "$@" ) | ssh "$SSH_SERVER"
 }
 
 if [[ -n "$MODE" ]]; then

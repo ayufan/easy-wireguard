@@ -64,6 +64,12 @@ Just copy-paste it and voila, or:
 ./emit-server --shell scaleway | ssh root@scaleway.server
 ```
 
+Or doing the above in simpler form:
+
+```bash
+./emit-server --ssh root@scaleway.server scaleway
+```
+
 However, if you did install `easy-wireguard` on scaleway.server, you can also use:
 
 ```bash
