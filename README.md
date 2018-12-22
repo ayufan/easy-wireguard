@@ -21,13 +21,13 @@ git clone https://gitlab.com/ayufan/easy-wireguard
 ## Add server
 
 ```bash
-./add-server scaleway scaleway.remote.address 192.168.60.1/24 192.168.60.2 192.168.60.127
+./add-server scaleway scaleway.remote.hostname 192.168.60.1/24 192.168.60.2 192.168.60.127
 ```
 
 The:
 
 - `scaleway` is a name of server
-- `scaleway.remote.address` is a remote endpoint
+- `scaleway.remote.hostname` is a remote endpoint
 - `192.168.60.1/24` is an tunnel address of the server
 - `192.168.60.2 192.168.60.127` the IP range from which the IPs are allocated to clients
 
