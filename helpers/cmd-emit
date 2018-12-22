@@ -2,9 +2,9 @@
 
 MODE=
 
-export WG_QUICK=yes
-export WG_OPENWRT=no
-export WG_DEFAULT_GW=no
+export WG_QUICK=${WG_QUICK:-yes}
+export WG_OPENWRT=${WG_OPENWRT:-no}
+export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 for arg; do
   case $arg in
@@ -78,7 +78,13 @@ qr_emit() {
 }
 
 shell_emit() {
-  echo "cat <<EOF > /etc/wireguard/wg-${server_name}.conf"
+  interface_name="wg-${server_name}"
+  if [[ "$WG_OPENWRT" == "yes" ]]; then
+    interface_name="wireguard"
+  fi
+
+  echo "mkdir -p /etc/wireguard/"
+  echo "cat <<EOF > /etc/wireguard/${interface_name}.conf"
   $@
   echo "EOF"
   echo ""
@@ -92,8 +98,8 @@ shell_emit() {
 
   if [[ "$WG_OPENWRT" == "yes" ]]; then
     cat <<"EOF"
-cat <<WGEOF > /etc/hotplug.d/iface/99-wireguard
-  #!/bin/sh
+cat <<"WGEOF" > /etc/hotplug.d/iface/99-wireguard
+#!/bin/sh
 
 if [ "$ACTION" == "ifup" ] && [ -f "/etc/wireguard/$INTERFACE.conf" ]; then
   /usr/bin/wg addconf "$INTERFACE" /etc/wireguard/$INTERFACE.conf
@@ -101,14 +107,14 @@ fi
 WGEOF
 EOF
     echo "chmod +x /etc/hotplug.d/iface/99-wireguard"
-    echo "ifup wg-${server_name}"
+    echo "ifup ${interface_name}"
   fi
 }
 
 config_file() {
   if [[ -n "$client_name" ]]; then
     mkdir -p "$(pwd)/configs/${client_name}"
-    if [[ -n "$WG_DEFAULT_GW" ]]; then
+    if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
       echo "$(pwd)/configs/${client_name}/${server_name}def.conf"
     else
       echo "$(pwd)/configs/${client_name}/${server_name}.conf"
@@ -246,7 +252,7 @@ emit_config_peer() {
   for route in $peer_routes; do
     echo "AllowedIPs=$route"
   done
-  if [[ -n "$WG_DEFAULT_GW" ]]; then
+  if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
     echo "AllowedIPs=0.0.0.0/0"
   fi
 
