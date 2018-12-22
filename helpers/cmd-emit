@@ -72,24 +72,33 @@ shell_emit() {
 
 config_file() {
   if [[ -n "$client_name" ]]; then
-    echo "$(pwd)/configs/wg-${server_name}-${client_name}.conf"
+    mkdir -p "$(pwd)/configs/${client_name}"
+    if [[ -n "$DEFAULT_GW" ]]; then
+      echo "$(pwd)/configs/${client_name}/${server_name}-default.conf"
+    else
+      echo "$(pwd)/configs/${client_name}/${server_name}.conf"
+    fi
   else
-    echo "$(pwd)/configs/wg-${server_name}.conf"
+    mkdir -p "$(pwd)/configs"
+    echo "$(pwd)/configs/${server_name}.conf"
   fi
 }
 
 write_emit() {
-  set -x
+  file="$(config_file)"
   umask 0077
-  $@ > "$(config_file)"
+  echo "write $file"
+  $@ > "$file"
 }
 
 wg_quick_emit() {
+  file="$(config_file)"
   ACTION="$1"
   shift
 
   write_emit "$@"
-  wg-quick "$ACTION" "$(config_file)"
+  echo "wg-quick $ACTION $file"
+  wg-quick "$ACTION" "$file"
 }
 
 up_emit() {
@@ -101,7 +110,8 @@ down_emit() {
 }
 
 ssh_emit() {
-  ( echo "set -x"; shell_emit "$@" ) | ssh "$SSH_SERVER"
+  echo "ssh $SSH_SERVER"
+  shell_emit "$@" | ssh "$SSH_SERVER"
 }
 
 if [[ -n "$MODE" ]]; then
