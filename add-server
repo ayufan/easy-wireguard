@@ -29,5 +29,6 @@ Address="$Address"
 StartIp="$StartIp"
 EndIp="$EndIp"
 ListenPort="$DEFAULT_LISTEN_PORT"
+DNS=1.1.1.1,1.0.0.1
 DefaultGateway=
 EOF

@@ -20,5 +20,5 @@ if [[ ! -e "$server_config" ]]; then
 fi
 
 load_config "$server_config"
-emit_config_interface "$client_config"
+emit_config_interface "$client_config" "$server_config"
 emit_config_peer "$server_config" "$client_config"
