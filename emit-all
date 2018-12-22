@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -eo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+source "$DIR/helpers/functions"
+
+rm -rf configs/*
+
+umask 0077
+
+for server_config in "servers/"*.conf; do
+  server_name="$(basename "$server_config" .conf)"
+
+  echo "$server_name..."
+
+  "$DIR/emit-server" "$server_name" > "configs/${server_name}.conf"
+
+  for client_config in "clients/"*.conf; do
+    echo "$server_name:$client_name..."
+
+    client_name="$(basename "$client_config" .conf)"
+
+    mkdir -p "configs/$client_name"
+
+    "$DIR/emit-client" "$server_name" "$client_name" > "configs/$client_name/$server_name.conf"
+    "$DIR/emit-client" --default "$server_name" "$client_name" > "configs/$client_name/${server_name}-default.conf"
+  done
+done
+
+echo Done.

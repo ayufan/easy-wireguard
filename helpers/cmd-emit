@@ -70,22 +70,26 @@ shell_emit() {
   echo "systemctl restart wg-quick@wg-${server_name}.service"
 }
 
+config_file() {
+  if [[ -n "$client_name" ]]; then
+    echo "$(pwd)/configs/wg-${server_name}-${client_name}.conf"
+  else
+    echo "$(pwd)/configs/wg-${server_name}.conf"
+  fi
+}
+
 write_emit() {
   set -x
   umask 0077
-  $@ > "wg-${server_name}.conf"
+  $@ > "$(config_file)"
 }
 
 wg_quick_emit() {
-  wg_name="$(pwd)/wg-${server_name}.conf"
-
   ACTION="$1"
   shift
 
-  set -x
-  umask 0077
-  $@ > "wg-${server_name}.conf"
-  wg-quick "$ACTION" "$wg_name"
+  write_emit "$@"
+  wg-quick "$ACTION" "$(config_file)"
 }
 
 up_emit() {
@@ -113,9 +117,10 @@ usage() {
   stderr "Options:"
   stderr " --qr: output QR code"
   stderr " --shell: output shell commands"
-  stderr " --write: write configuration file"
+  stderr " --write: write configuration file (to configs/wg-*.conf)"
   stderr " --up: wg-quick up"
   stderr " --down: wg-quick down"
+  stderr " --ssh USER@HOST: upload ssh config to remove machine"
   stderr ""
   exit 1
 }

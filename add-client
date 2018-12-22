@@ -2,7 +2,9 @@
 
 set -eo pipefail
 
-source helpers/functions
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+source "$DIR/helpers/functions"
 
 if [[ $# -ne 1 ]]; then
   stderr "usage: $0 <name>"

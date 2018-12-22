@@ -2,7 +2,9 @@
 
 set -eo pipefail
 
-source helpers/functions
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+source "$DIR/helpers/functions"
 
 if [[ $# -ne 5 ]]; then
   echo "usage: $0 <name> <endpoint> <address-with-subnet> <start-ip> <end-ip>"

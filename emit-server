@@ -2,8 +2,10 @@
 
 set -eo pipefail
 
-source helpers/functions
-source helpers/emit
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+source "$DIR/helpers/functions"
+source "$DIR/helpers/cmd-emit"
 
 if [[ $# -ne 1 ]]; then
   usage "$0" "<server>" "<client>"
