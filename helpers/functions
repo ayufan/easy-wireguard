@@ -93,7 +93,7 @@ emit_config_interface() {
   local peer_dns=$(get_value "$peer_config" "DNS")
 
   if [[ -z "$interface_address" ]]; then
-    interface_address=$(alloc_address "$interface_name" "$start_ip" "$end_ip")
+    interface_address="$(alloc_address "$interface_name" "$start_ip" "$end_ip")/32"
   fi
 
   echo "[Interface]"
