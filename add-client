@@ -20,6 +20,6 @@ PublicKey=$(echo "$PrivateKey" | wg pubkey)
 cat <<EOF > clients/$1.conf
 PrivateKey="$PrivateKey"
 PublicKey="$PublicKey"
-ListenPort="51821"
+PersistentKeepalive=25
 Routes=""
 EOF
