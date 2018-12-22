@@ -93,7 +93,7 @@ emit_config_interface() {
   local peer_dns=$(get_value "$peer_config" "DNS")
 
   if [[ -z "$interface_address" ]]; then
-    interface_address=$(alloc_address "$interface_address" "$start_ip" "$end_ip")
+    interface_address=$(alloc_address "$interface_name" "$start_ip" "$end_ip")
   fi
 
   echo "[Interface]"
@@ -128,7 +128,7 @@ emit_config_peer() {
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
 
   if [[ -z "$peer_address" ]]; then
-    peer_address=$(alloc_address "$peer_address" "$start_ip" "$end_ip")
+    peer_address=$(alloc_address "$peer_name" "$start_ip" "$end_ip")
   fi
 
   echo "[Peer]"
