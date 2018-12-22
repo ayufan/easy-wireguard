@@ -1,0 +1,134 @@
+#!/bin/bash
+
+if [[ -e .env ]]; then
+  source .env
+fi
+
+DEFAULT_LISTEN_PORT=51820
+
+shopt -s nullglob
+
+get_value() {
+  ( source "$1" && echo "${!2}" )
+}
+
+require_value() {
+  (
+    source "$1"
+    if [[ -z "${!2}" ]]; then
+      echo "$1: missing $2" 1>&2
+      return 1
+    fi
+
+    echo "${!2}"
+  )
+}
+
+stderr() {
+  echo "$@" 1>&2
+}
+
+atoi() {
+  #Returns the integer representation of an IP arg, passed in ascii dotted-decimal notation (x.x.x.x)
+  IP=$1; IPNUM=0
+  for (( i=0 ; i<4 ; ++i )); do
+  ((IPNUM+=${IP%%.*}*$((256**$((3-${i}))))))
+  IP=${IP#*.}
+  done
+  echo $IPNUM
+} 
+
+itoa() {
+  #returns the dotted-decimal ascii form of an IP arg passed in integer format
+  echo -n $(($(($(($((${1}/256))/256))/256))%256)).
+  echo -n $(($(($((${1}/256))/256))%256)).
+  echo -n $(($((${1}/256))%256)).
+  echo $((${1}%256))
+}
+
+alloc_address() {
+  node="$1"
+  startip=$(atoi "$2")
+  endip=$(atoi "$3")
+
+  for (( i=$startip; i<=$endip; i=i+1 )); do
+    ip=$(itoa $i)
+    ipfile="addresses/$ip.node"
+
+    if [[ ! -e "$ipfile" ]]; then
+      # allocate new IP
+      echo "$node" > $ipfile
+      echo "$ip"
+      return 0
+    elif [[ "$(cat "$ipfile")" == "$node" ]]; then
+      # return existing IP
+      echo "$ip"
+      return 0
+    fi
+  done
+
+  echo "No free addresses" 1>&2
+  return 1
+}
+
+load_config() {
+  start_ip=$(get_value "$1" "StartIp")
+  end_ip=$(get_value "$1" "EndIp")
+}
+
+emit_config_interface() {
+  local interface_config="$1"
+  local interface_name=$(basename "$interface_config" .conf)
+  local interface_privatekey=$(require_value "$interface_config" "PrivateKey")
+  local interface_address=$(get_value "$interface_config" "Address")
+  local interface_listenport=$(get_value "$interface_config" "ListenPort")
+
+  if [[ -z "$interface_address" ]]; then
+    interface_address=$(alloc_address "$interface_address" "$start_ip" "$end_ip")
+  fi
+
+  echo "[Interface]"
+  echo "PrivateKey=$interface_privatekey"
+  if [[ -n "$interface_address" ]]; then
+    echo "Address=$interface_address"
+  fi
+  if [[ -n "$interface_listenport" ]]; then
+    echo "ListenPort=$interface_listenport"
+  fi
+
+  echo
+}
+
+emit_config_peer() {
+  local peer_config="$1"
+  local interface_config="$2"
+
+  local peer_name=$(basename "$peer_config" .conf)
+  local peer_publickey=$(require_value "$peer_config" "PublicKey")
+  local peer_address=$(get_value "$peer_config" "Address")
+  local peer_routes=$(get_value "$peer_config" "Routes")
+  local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
+  local peer_endpoint=$(get_value "$peer_config" "Endpoint")
+  local peer_listenport=$(get_value "$peer_config" "ListenPort")
+
+  if [[ -z "$peer_address" ]]; then
+    peer_address=$(alloc_address "$peer_address" "$start_ip" "$end_ip")
+  fi
+
+  echo "[Peer]"
+  echo "PublicKey=$peer_publickey"
+  if [[ -n "$peer_endpoint" ]]; then
+    echo "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
+  fi
+  if [[ -n "$interface_keepalive" ]]; then
+    echo "PersistentKeepalive=$interface_keepalive"
+  fi
+  if [[ -n "$peer_address" ]]; then
+    echo "AllowedIPs=$peer_address"
+  fi
+  for route in $peer_routes; do
+    echo "AllowedIPs=$route"
+  done
+
+  echo
+}

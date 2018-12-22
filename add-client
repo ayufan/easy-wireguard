@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -eo pipefail
+
+source helpers/functions
+
+if [[ $# -ne 1 ]]; then
+  stderr "usage: $0 <name>"
+  exit 1
+fi
+
+if [[ -e "clients/$1.conf" ]]; then
+  stderr "The $1.conf already exist!"
+  exit 1
+fi
+
+PrivateKey=$(wg genkey)
+PublicKey=$(echo "$PrivateKey" | wg pubkey)
+
+cat <<EOF > clients/$1.conf
+PrivateKey="$PrivateKey"
+PublicKey="$PublicKey"
+ListenPort="51821"
+Routes=""
+EOF

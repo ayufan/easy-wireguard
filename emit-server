@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -eo pipefail
+
+source helpers/functions
+source helpers/emit
+
+if [[ $# -ne 1 ]]; then
+  usage "$0" "<server>" "<client>"
+fi
+
+if [[ ! -e "$server_config" ]]; then
+  echo "The $server_config does not exist!"
+  exit 1
+fi
+
+load_config "$server_config"
+emit_config_interface "$server_config"
+
+for other_server_config in "servers/"*.conf; do
+  [[ "$other_server_config" == "$server_config" ]] && continue
+
+  emit_config_peer "$other_server_config" "$server_config"
+done
+
+for client_config in "clients/"*.conf; do
+  emit_config_peer "$client_config" "$server_config"
+done

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -eo pipefail
+
+source helpers/functions
+
+if [[ $# -ne 5 ]]; then
+  echo "usage: $0 <name> <endpoint> <address-with-subnet> <start-ip> <end-ip>"
+  exit 1
+fi
+
+if [[ -e "servers/$1.conf" ]]; then
+  echo "The servers/$1.conf already exist!"
+  exit 1
+fi
+
+PrivateKey=$(wg genkey)
+PublicKey=$(echo "$PrivateKey" | wg pubkey)
+Endpoint="$2"
+Address="$3"
+StartIp="$4"
+EndIp="$5"
+
+cat <<EOF > servers/$1.conf
+PrivateKey="$PrivateKey"
+PublicKey="$PublicKey"
+Endpoint="$endpoint"
+Address="$Address"
+StartIp="$StartIp"
+EndIp="$EndIp"
+ListenPort="51820"
+EOF
