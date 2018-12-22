@@ -29,6 +29,11 @@ for arg; do
       MODE=down
       ;;
 
+    --default)
+      shift
+      export DEFAULT_GW=yes
+      ;;
+
     --*)
       echo "unknown $arg."
       exit 1

@@ -24,7 +24,7 @@ EndIp="$5"
 cat <<EOF > servers/$1.conf
 PrivateKey="$PrivateKey"
 PublicKey="$PublicKey"
-Endpoint="$endpoint"
+Endpoint="$Endpoint"
 Address="$Address"
 StartIp="$StartIp"
 EndIp="$EndIp"
