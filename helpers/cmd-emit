@@ -231,6 +231,13 @@ emit_config_peer() {
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
   local peer_psk=$(get_value "$peer_psk" "PresharedKey")
 
+  local interface_name=$(basename "$interface_config" .conf)
+  local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_name}")
+
+  if [[ "$peer_disallowed" == 0 ]]; then
+    return 0
+  fi
+
   if [[ -z "$peer_address" ]]; then
     peer_address=$(alloc_address "$peer_name" "$start_ip" "$end_ip")
   fi
