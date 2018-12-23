@@ -9,23 +9,46 @@ DEFAULT_LISTEN_PORT=51820
 shopt -s nullglob
 
 get_value() {
+  local config="$1"
+  shift
+
+  if [[ ! -e "$config" ]]; then
+    return
+  fi
+
   (
-    if [[ -e "$1" ]]; then
-      source "$1"
-      echo "${!2}"
-    fi
+    source "$config"
+
+    for i; do
+      if [[ -n "${!i}" ]]; then
+        echo "${!i}"
+        return
+      fi
+    done
   )
 }
 
 require_value() {
-  (
-    source "$1"
-    if [[ -z "${!2}" ]]; then
-      echo "$1: missing $2" 1>&2
-      return 1
-    fi
+  local config="$1"
+  shift
 
-    echo "${!2}"
+  if [[ ! -e "$config" ]]; then
+    stderr "$config is missing"
+    return 1
+  fi
+
+  (
+    source "$config"
+
+    for i; do
+      if [[ -n "${!i}" ]]; then
+        echo "${!i}"
+        return
+      fi
+    done
+
+    stderr "$config the $i is missing"
+    return 1
   )
 }
 

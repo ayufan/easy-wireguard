@@ -219,19 +219,20 @@ emit_config_interface() {
 }
 
 emit_config_peer() {
-  local peer_config="$1"
   local interface_config="$2"
+  local interface_name=$(basename "$interface_config" .conf)
+
+  local peer_config="$1"
 
   local peer_name=$(basename "$peer_config" .conf)
   local peer_publickey=$(require_value "$peer_config" "PublicKey")
   local peer_address=$(get_value "$peer_config" "Address")
-  local peer_routes=$(get_value "$peer_config" "Routes")
+  local peer_routes=$(get_value "$peer_config" "Routes_${interface_name}" "Routes")
   local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
   local peer_psk=$(get_value "$peer_psk" "PresharedKey")
 
-  local interface_name=$(basename "$interface_config" .conf)
   local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_name}")
 
   if [[ "$peer_disallowed" == 0 ]]; then
