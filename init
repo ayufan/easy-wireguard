@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -eo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+source "$DIR/helpers/functions"
+
+if [[ $# -ne 1 ]]; then
+  echo "usage: $0 <repository>"
+  exit 1
+fi
+
+git init "$1"
+
+cd "$1"
+
+echo "/configs" >> .gitignore
+git add .gitignore
+
+for dir in addresses clients configs servers; do
+  mkdir -p "$dir"
+  touch "$dir/.gitkeep"
+  git add -f "$dir/.gitkeep"
+done

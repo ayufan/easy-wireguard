@@ -18,10 +18,17 @@ Or
 git clone https://gitlab.com/ayufan/easy-wireguard
 ```
 
+## Init repository
+
+```bash
+./init home
+```
+
 ## Add server
 
 ```bash
-./add-server scaleway scaleway.remote.hostname 192.168.60.1/24 192.168.60.2 192.168.60.127
+cd home/
+../add-server scaleway scaleway.remote.hostname 192.168.60.1/24 192.168.60.2 192.168.60.127
 ```
 
 The:
@@ -34,7 +41,8 @@ The:
 ## Add client
 
 ```bash
-./add-client kamil-macbook
+cd home/
+../add-client kamil-macbook
 ```
 
 The:
@@ -54,27 +62,31 @@ sudo apt-get install wireguard
 ## Configuring Server
 
 ```bash
-./emit-server --shell scaleway
+cd home/
+../emit-server --shell scaleway
 ```
 
 This will print a set of commands that enable VPN on start.
 Just copy-paste it and voila, or:
 
 ```bash
-./emit-server --shell scaleway | ssh root@scaleway.server
+cd home/
+../emit-server --shell scaleway | ssh root@scaleway.server
 ```
 
 Or doing the above in simpler form:
 
 ```bash
-./emit-server --ssh root@scaleway.server scaleway
+cd home/
+../emit-server --ssh root@scaleway.server scaleway
 ```
 
 However, if you did install `easy-wireguard` on scaleway.server, you can also use:
 
 ```bash
-./emit-server --up scaleway
-./emit-server --down scaleway
+cd home/
+../emit-server --up scaleway
+../emit-server --down scaleway
 ```
 
 ## Configuring Client
@@ -84,7 +96,8 @@ There are number of ways to grab config
 ### 1. Grab config (and use it)
 
 ```bash
-./emit-client scaleway kamil-macbook
+cd home/
+../emit-client scaleway kamil-macbook
 ```
 
 This gets config for particular server.
@@ -92,7 +105,8 @@ This gets config for particular server.
 ### 2. Grab shell commands if your machine is client
 
 ```bash
-./emit-client --shell scaleway kamil-macbook
+cd home/
+../emit-client --shell scaleway kamil-macbook
 ```
 
 ### 3. Use QR-code
@@ -100,7 +114,8 @@ This gets config for particular server.
 This is a new way to installing VPN config!
 
 ```bash
-./emit-client --qr scaleway kamil-macbook
+cd home/
+../emit-client --qr scaleway kamil-macbook
 ```
 
 ## Configure additional routes
@@ -127,9 +142,10 @@ And re-install server.
 ## Use client config that routes all traffic via VPN simply add `--default`
 
 ```bash
-./emit-client --default scaleway kamil-macbook
-./emit-client --default --qr scaleway kamil-macbook
-./emit-client --default --shell scaleway kamil-macbook
+cd home/
+../emit-client --default scaleway kamil-macbook
+../emit-client --default --qr scaleway kamil-macbook
+../emit-client --default --shell scaleway kamil-macbook
 ```
 
 ## Additional configurations
@@ -148,7 +164,7 @@ There's number of additional configurations that you might be interested in:
 
 ## Author
 
-Kamil Trzciński, 2018
+Kamil Trzciński, 2018-2019
 
 ## License
 
