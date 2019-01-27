@@ -6,6 +6,8 @@ export WG_QUICK=${WG_QUICK:-yes}
 export WG_OPENWRT=${WG_OPENWRT:-no}
 export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
+APP_NAME="$0"
+
 for arg; do
   case $arg in
     --qr)
@@ -67,11 +69,53 @@ for arg; do
   esac
 done
 
-server_name="$1"
-server_config="servers/$server_name.conf"
+run_server_and_client() {
+  if [[ $# -ne 2 ]]; then
+    stderr "usage: $APP_NAME [options] <server-config> <client-config>"
+    exit 1
+  fi
 
-client_name="$2"
-client_config="clients/$client_name.conf"
+  server_name="$1"
+  server_config="servers/$server_name.conf"
+
+  client_name="$2"
+  client_config="clients/$client_name.conf"
+
+  if [[ ! -e "$server_config" ]]; then
+    stderr "The $server_config does not exist!"
+    exit 1
+  fi
+
+  if [[ ! -e "$client_config" ]]; then
+    stderr "The $client_config does not exist!"
+    exit 1
+  fi
+
+  if [[ -n "$MODE" ]]; then
+    ${MODE}_emit "$0" "$@"
+    exit 0
+  fi
+}
+
+run_server() {
+  if [[ $# -ne 1 ]]; then
+    stderr "usage: $APP_NAME [options] <server-config>"
+    exit 1
+  fi
+
+  server_name="$1"
+  server_config="servers/$server_name.conf"
+
+  if [[ ! -e "$server_config" ]]; then
+    stderr "The $server_config does not exist!"
+    exit 1
+  fi
+
+  if [[ -n "$MODE" ]]; then
+    ${MODE}_emit "$0" "$@"
+    exit 0
+  fi
+}
 
 qr_emit() {
   $@ | qrencode -t ansiutf8
@@ -155,15 +199,8 @@ ssh_emit() {
   ( echo 'set -x'; shell_emit "$@" ) | ssh -T "$SSH_SERVER"
 }
 
-if [[ -n "$MODE" ]]; then
-  ${MODE}_emit "$0" "$@"
-  exit 0
-fi
-
 usage() {
-  APP="$1"
-  shift
-  stderr "$APP" "[options]" "$@"
+  stderr "$APP_NAME" "[options]" "$@"
   stderr ""
   stderr "Options:"
   stderr " --qr: output QR code"

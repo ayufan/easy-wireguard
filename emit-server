@@ -7,14 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 source "$DIR/helpers/functions"
 source "$DIR/helpers/cmd-emit"
 
-if [[ $# -ne 2 ]]; then
-  usage "$0" "<server>" "<client>"
-fi
-
-if [[ ! -e "$server_config" ]]; then
-  echo "The $server_config does not exist!"
-  exit 1
-fi
+run_server "$@"
 
 load_config "$server_config"
 emit_config_interface "$server_config"
