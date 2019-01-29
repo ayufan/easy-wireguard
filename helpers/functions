@@ -20,7 +20,7 @@ get_value() {
     source "$config"
 
     for i; do
-      if [[ -n "${!i}" ]]; then
+      if declare -p "$i" &>/dev/null; then
         echo "${!i}"
         return
       fi
@@ -41,7 +41,7 @@ require_value() {
     source "$config"
 
     for i; do
-      if [[ -n "${!i}" ]]; then
+      if declare -p "$i" &>/dev/null; then
         echo "${!i}"
         return
       fi
