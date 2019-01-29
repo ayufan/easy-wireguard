@@ -8,6 +8,22 @@ export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 APP_NAME="$0"
 
+usage() {
+  stderr "$APP_NAME" "[options]" "$@"
+  stderr ""
+  stderr "Options:"
+  stderr " --qr: output QR code"
+  stderr " --shell: output shell commands"
+  stderr " --write: write configuration file (to configs/wg-*.conf)"
+  stderr " --up: wg-quick up"
+  stderr " --down: wg-quick down"
+  stderr " --ssh USER@HOST: upload ssh config to remove machine"
+  stderr " --wg-quick: output wg-quick compatible configuration"
+  stderr " --openwrt: output openwrt compatible configuration"
+  stderr ""
+  exit 1
+}
+
 for arg; do
   case $arg in
     --qr)
@@ -56,6 +72,11 @@ for arg; do
       SSH_SERVER="$2"
       shift 2
       MODE=ssh
+      ;;
+
+    -h|--help)
+      usage
+      exit 1
       ;;
 
     --*)
@@ -197,22 +218,6 @@ down_emit() {
 ssh_emit() {
   echo "ssh $SSH_SERVER"
   ( echo 'set -x'; shell_emit "$@" ) | ssh -T "$SSH_SERVER"
-}
-
-usage() {
-  stderr "$APP_NAME" "[options]" "$@"
-  stderr ""
-  stderr "Options:"
-  stderr " --qr: output QR code"
-  stderr " --shell: output shell commands"
-  stderr " --write: write configuration file (to configs/wg-*.conf)"
-  stderr " --up: wg-quick up"
-  stderr " --down: wg-quick down"
-  stderr " --ssh USER@HOST: upload ssh config to remove machine"
-  stderr " --wg-quick: output wg-quick compatible configuration"
-  stderr " --openwrt: output openwrt compatible configuration"
-  stderr ""
-  exit 1
 }
 
 emit_config_interface() {
