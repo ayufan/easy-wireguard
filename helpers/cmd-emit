@@ -84,7 +84,7 @@ usage() {
   stderr " --write: write configuration file (to configs/wg-*.conf)"
   stderr " --up: wg-quick up"
   stderr " --down: wg-quick down"
-  stderr " --ssh USER@HOST: upload ssh config to remove machine"
+  stderr " --ssh USER@HOST: upload ssh config to remote machine"
   stderr " --wg-quick: output wg-quick compatible configuration"
   stderr " --openwrt: output openwrt compatible configuration"
   stderr ""
