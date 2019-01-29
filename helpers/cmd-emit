@@ -229,9 +229,11 @@ emit_config_interface() {
   local interface_listenport=$(get_value "$interface_config" "ListenPort")
   local interface_default_gateway=$(get_value "$interface_config" "DefaultGateway")
   local interface_fwmark=$(get_value "$interface_config" "FwMark")
+  local interface_mtu=$(get_value "$interface_config" "MTU")
 
   local peer_config="$2"
   local peer_dns=$(get_value "$peer_config" "DNS")
+  local peer_mtu=$(get_value "$peer_config" "MTU")
 
   if [[ -z "$interface_address" ]]; then
     interface_address="$(alloc_address "$interface_name" "$start_ip" "$end_ip")/32"
@@ -255,6 +257,12 @@ emit_config_interface() {
     fi
     if [[ -n "$peer_dns" ]]; then
       echo "DNS=$peer_dns"
+    fi
+    if [[ -n "$interface_mtu" ]]; then
+      echo "MTU=$interface_mtu"
+    fi
+    if [[ -n "$peer_mtu" ]]; then
+      echo "MTU=$peer_mtu"
     fi
   fi
 
