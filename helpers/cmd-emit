@@ -7,6 +7,7 @@ export WG_OPENWRT=${WG_OPENWRT:-no}
 export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 APP_NAME="$0"
+SHOW_HELP=
 
 for arg; do
   case $arg in
@@ -58,6 +59,11 @@ for arg; do
       MODE=ssh
       ;;
 
+    -h|--help)
+      shift
+      SHOW_HELP=1
+      ;;
+
     --*)
       echo "unknown $arg."
       exit 1
@@ -69,9 +75,25 @@ for arg; do
   esac
 done
 
+usage() {
+  stderr "$APP_NAME" "[options]" "$@"
+  stderr ""
+  stderr "Options:"
+  stderr " --qr: output QR code"
+  stderr " --shell: output shell commands"
+  stderr " --write: write configuration file (to configs/wg-*.conf)"
+  stderr " --up: wg-quick up"
+  stderr " --down: wg-quick down"
+  stderr " --ssh USER@HOST: upload ssh config to remove machine"
+  stderr " --wg-quick: output wg-quick compatible configuration"
+  stderr " --openwrt: output openwrt compatible configuration"
+  stderr ""
+  exit 1
+}
+
 run_server_and_client() {
-  if [[ $# -ne 2 ]]; then
-    stderr "usage: $APP_NAME [options] <server-config> <client-config>"
+  if [[ -n "$SHOW_HELP" ]] || [[ $# -ne 2 ]]; then
+    usage "<server-config>" "<client-config>"
     exit 1
   fi
 
@@ -98,8 +120,8 @@ run_server_and_client() {
 }
 
 run_server() {
-  if [[ $# -ne 1 ]]; then
-    stderr "usage: $APP_NAME [options] <server-config>"
+  if [[ -n "$SHOW_HELP" ]] || [[ $# -ne 1 ]]; then
+    usage "<server-config>"
     exit 1
   fi
 
@@ -197,22 +219,6 @@ down_emit() {
 ssh_emit() {
   echo "ssh $SSH_SERVER"
   ( echo 'set -x'; shell_emit "$@" ) | ssh -T "$SSH_SERVER"
-}
-
-usage() {
-  stderr "$APP_NAME" "[options]" "$@"
-  stderr ""
-  stderr "Options:"
-  stderr " --qr: output QR code"
-  stderr " --shell: output shell commands"
-  stderr " --write: write configuration file (to configs/wg-*.conf)"
-  stderr " --up: wg-quick up"
-  stderr " --down: wg-quick down"
-  stderr " --ssh USER@HOST: upload ssh config to remove machine"
-  stderr " --wg-quick: output wg-quick compatible configuration"
-  stderr " --openwrt: output openwrt compatible configuration"
-  stderr ""
-  exit 1
 }
 
 emit_config_interface() {
