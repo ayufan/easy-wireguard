@@ -150,7 +150,7 @@ shell_emit() {
   fi
 
   echo "mkdir -p /etc/wireguard/"
-  echo "umask 0200"
+  echo "umask 0177"
   echo "cat <<EOF > /etc/wireguard/${interface_name}.conf"
   $@
   echo "EOF"
