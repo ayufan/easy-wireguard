@@ -58,7 +58,7 @@ stderr() {
 
 atoi() {
   #Returns the integer representation of an IP arg, passed in ascii dotted-decimal notation (x.x.x.x)
-  IP=$1; IPNUM=0
+  local IP=$1; local IPNUM=0
   for (( i=0 ; i<4 ; ++i )); do
   ((IPNUM+=${IP%%.*}*$((256**$((3-${i}))))))
   IP=${IP#*.}
@@ -75,21 +75,32 @@ itoa() {
 }
 
 alloc_address() {
-  node="$1"
-  startip=$(atoi "$2")
-  endip=$(atoi "$3")
+  local node_ip="$1"
+  local node_publickey="$2"
+  local startip=$(atoi "$3")
+  local endip=$(atoi "$4")
 
   for (( i=$startip; i<=$endip; i=i+1 )); do
-    ip=$(itoa $i)
-    ipfile="addresses/$ip.node"
+    local ip=$(itoa $i)
+    local ipfile="addresses/$ip.node"
+    local ipfile_ip=""
+    local ipfile_publickey=""
+    local ipfile_rest=""
 
-    if [[ ! -e "$ipfile" ]]; then
-      # allocate new IP
-      echo "$node" > $ipfile
+    if [[ -e "$ipfile" ]]; then
+      read "-d\n" ipfile_ip ipfile_publickey ipfile_rest < "$ipfile"
+    fi
+
+    if [[ "$ipfile_ip" == "$node_ip" ]] && [[ "$ipfile_publickey" == "$node_publickey" ]]; then
+      # return existing IP
       echo "$ip"
       return 0
-    elif [[ "$(cat "$ipfile")" == "$node" ]]; then
-      # return existing IP
+    fi
+
+    if [[ -z "$ipfile_ip" ]] || [[ "$ipfile_ip" == "$node_ip" ]] || [[ "$ipfile_publickey" == "$node_publickey" ]]; then
+      # allocate or rewrite IP-file
+      echo "$node_ip" > $ipfile
+      echo "$node_publickey" >> $ipfile
       echo "$ip"
       return 0
     fi

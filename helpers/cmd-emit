@@ -225,6 +225,7 @@ ssh_emit() {
 emit_config_interface() {
   local interface_config="$1"
   local interface_name=$(basename "$interface_config" .conf)
+  local interface_publickey=$(require_value "$interface_config" "PublicKey")
   local interface_privatekey=$(require_value "$interface_config" "PrivateKey")
   local interface_address=$(get_value "$interface_config" "Address")
   local interface_listenport=$(get_value "$interface_config" "ListenPort")
@@ -237,7 +238,7 @@ emit_config_interface() {
   local peer_mtu=$(get_value "$peer_config" "MTU")
 
   if [[ -z "$interface_address" ]]; then
-    interface_address="$(alloc_address "$interface_name" "$start_ip" "$end_ip")/32"
+    interface_address="$(alloc_address "$interface_name" "$interface_publickey" "$start_ip" "$end_ip")/32"
   fi
 
   echo "[Interface]"
@@ -292,7 +293,7 @@ emit_config_peer() {
   fi
 
   if [[ -z "$peer_address" ]]; then
-    peer_address=$(alloc_address "$peer_name" "$start_ip" "$end_ip")
+    peer_address=$(alloc_address "$peer_name" "$peer_publickey" "$start_ip" "$end_ip")
   fi
 
   echo "[Peer]"
