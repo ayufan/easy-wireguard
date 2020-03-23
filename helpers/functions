@@ -52,6 +52,17 @@ require_value() {
   )
 }
 
+get_psk() {
+  local psk_a=$(get_value "$1" "PresharedKey")
+  local psk_b=$(get_value "$2" "PresharedKey")
+
+  if [[ "$psk_a" < "$psk_b" ]]; then
+    echo "$psk_a$psk_b"
+  else
+    echo "$psk_b$psk_a"
+  fi
+}
+
 stderr() {
   echo "$@" 1>&2
 }

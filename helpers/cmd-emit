@@ -284,7 +284,6 @@ emit_config_peer() {
   local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
-  local peer_psk=$(get_value "$peer_psk" "PresharedKey")
 
   local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_name}")
 
@@ -292,14 +291,16 @@ emit_config_peer() {
     return 0
   fi
 
+  local psk=$(get_psk "$peer_config" "$interface_config")
+
   if [[ -z "$peer_address" ]]; then
     peer_address=$(alloc_address "$peer_name" "$peer_publickey" "$start_ip" "$end_ip")
   fi
 
   echo "[Peer]"
   echo "PublicKey=$peer_publickey"
-  if [[ -n "$peer_psk" ]]; then
-    echo "PresharedKey=$peer_psk"
+  if [[ -n "$psk" ]]; then
+    echo "PresharedKey=$psk"
   fi
   if [[ -n "$peer_endpoint" ]]; then
     echo "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
