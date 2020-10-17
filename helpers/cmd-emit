@@ -2,7 +2,7 @@
 
 MODE=
 
-export WG_OUTPUT=wg-quick
+export WG_OUTPUT=${WG_OUTPUT:-wg-quick}
 export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 APP_NAME="$0"
@@ -146,17 +146,17 @@ qr_emit() {
 }
 
 shell_emit() {
-  interface_name="wg-${server_name}"
+  export interface_name="wg-${server_name}"
   if [[ "$WG_OUTPUT" == "openwrt" ]]; then
-    interface_name="wireguard"
+    export interface_name="wireguard"
   fi
 
-  echo "mkdir -p /etc/wireguard/"
-  echo "umask 0177"
-  echo "cat <<EOF > /etc/wireguard/${interface_name}.conf"
+  echo_wgconf "mkdir -p /etc/wireguard/"
+  echo_wgconf "umask 0177"
+  echo_wgconf "cat <<EOF > /etc/wireguard/${interface_name}.conf"
   $@
-  echo "EOF"
-  echo ""
+  echo_wgconf "EOF"
+  echo_wgconf ""
 
   if [[ "$WG_OUTPUT" == "wg-quick" ]]; then
     echo ""
@@ -221,7 +221,7 @@ down_emit() {
 
 ssh_emit() {
   echo "ssh $SSH_SERVER"
-  ( echo 'set -x'; shell_emit "$@" ) | ssh -T "$SSH_SERVER"
+  ( echo_wgconf 'set -x'; shell_emit "$@" ) | ssh -T "$SSH_SERVER"
 }
 
 echo_wgconf() {
@@ -242,6 +242,12 @@ echo_openwrt() {
   fi
 }
 
+echo_mikrotik() {
+  if [[ "$WG_OUTPUT" == "mikrotik" ]]; then
+    echo "$@"
+  fi
+}
+
 if_ne() {
   key="$1"
   shift
@@ -250,7 +256,7 @@ if_ne() {
 
 emit_config_interface() {
   local interface_config="$1"
-  local interface_name=$(basename "$interface_config" .conf)
+  local interface_config_name=$(basename "$interface_config" .conf)
   local interface_publickey=$(require_value "$interface_config" "PublicKey")
   local interface_privatekey=$(require_value "$interface_config" "PrivateKey")
   local interface_address=$(get_value "$interface_config" "Address")
@@ -263,38 +269,59 @@ emit_config_interface() {
   local peer_dns=$(get_value "$peer_config" "DNS")
   local peer_mtu=$(get_value "$peer_config" "MTU")
 
+  if [[ -z "$interface_name" ]]; then
+    interface_name="$interface_config_name"
+  fi
+
   if [[ -z "$interface_address" ]]; then
-    interface_address="$(alloc_address "$interface_name" "$interface_publickey" "$start_ip" "$end_ip")/32"
+    interface_address="$(alloc_address "$interface_config_name" "$interface_publickey" "$start_ip" "$end_ip")/32"
   fi
 
   echo_wgconf "[Interface]"
+  echo_mikrotik ":if ([/interface/wireguard/find name=\"$interface_name\"]) do={} else={ /interface/wireguard/add name=\"$interface_name\" }"
+  echo_mikrotik "/interface/wireguard/peers/remove [find interface=\"$interface_name\"]"
+
   echo_wgconf "PrivateKey=$interface_privatekey"
+  echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] private-key=\"$interface_privatekey\""
+
   if_ne "$interface_fwmark" echo_wgconf "FwMark=$interface_fwmark"
+
   if_ne "$interface_address" echo_wgquick "Address=$interface_address"
-  if_ne "$interface_listenport" echo_wgquick "ListenPort=$interface_listenport"
+  if_ne "$interface_address" echo_mikrotik ":if ([/ip/address/find address=\"$interface_address\" interface=\"$interface_name\"]) do={} else={ /ip/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
+
+  echo_wgquick "ListenPort=${interface_listenport:-$DEFAULT_LISTEN_PORT}"
+  echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] listen-port=\"${interface_listenport:-$DEFAULT_LISTEN_PORT}\""
+
   if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
   if_ne "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+
   if_ne "$peer_dns" echo_wgquick "DNS=$peer_dns"
+
   if_ne "$peer_mtu" echo_wgquick "MTU=$peer_mtu"
+  if_ne "$peer_mtu" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] mtu=\"$peer_mtu\""
 
   echo
 }
 
 emit_config_peer() {
   local interface_config="$2"
-  local interface_name=$(basename "$interface_config" .conf)
+  local interface_config_name=$(basename "$interface_config" .conf)
+
+  if [[ -z "$interface_name" ]]; then
+    interface_name="$interface_config_name"
+  fi
 
   local peer_config="$1"
 
   local peer_name=$(basename "$peer_config" .conf)
   local peer_publickey=$(require_value "$peer_config" "PublicKey")
   local peer_address=$(get_value "$peer_config" "Address")
-  local peer_routes=$(get_value "$peer_config" "Routes_${interface_name}" "Routes")
+  local peer_routes=$(get_value "$peer_config" "Routes_${interface_config_name}" "Routes")
   local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
 
-  local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_name}")
+  local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_config_name}")
 
   if [[ "$peer_disallowed" == 0 ]]; then
     return 0
@@ -308,15 +335,27 @@ emit_config_peer() {
 
   echo_wgconf "[Peer]"
   echo_wgconf "PublicKey=$peer_publickey"
+  echo_mikrotik "/interface/wireguard/peers/add interface=\"$interface_name\" comment=\"$peer_name\" public-key=\"$peer_publickey\" allowed-address=\"$peer_address\""
+
   if_ne "$psk" echo_wgconf "PresharedKey=$psk"
-  if_ne "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
+  if_ne "$psk" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] preshared-key=\"$psk\""
+
+  if_ne "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}"
+  if_ne "$peer_endpoint" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] endpoint=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\""
+
   if_ne "$interface_keepalive" echo_wgconf "PersistentKeepalive=$interface_keepalive"
+  if_ne "$interface_keepalive" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] persistent-keepalive=\"$interface_keepalive\""
+
   if_ne "$peer_address" echo_wgconf "AllowedIPs=$peer_address"
 
   for route in $peer_routes; do
     echo_wgconf "AllowedIPs=$route"
+    echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route\")"
+    if_ne "$interface_address" echo_mikrotik ":if ([/ip/address/find address=\"$interface_address\" interface=\"$interface_name\"]) do={} else={ /ip/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
   done
+
   if_ne "$WG_DEFAULT_GW" echo_wgconf "AllowedIPs=0.0.0.0/0"
+  if_ne "$WG_DEFAULT_GW" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"0.0.0.0/0\")"
 
   echo
 }
