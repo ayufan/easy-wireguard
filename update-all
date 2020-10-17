@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -eo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+
+source "$DIR/helpers/functions"
+
+echo "Servers:"
+for server_config in "servers/"*.conf; do
+  server_name="$(basename "$server_config" .conf)"
+
+  UpdateCmd=$(get_value "$server_config" "UpdateCmd")
+
+  if [[ -n "$UpdateCmd" ]]; then
+    echo "$server_name... "
+    "$DIR/emit-server" $UpdateCmd "$server_name"
+  fi
+done
+
+echo
+echo "Clients:"
+
+for client_config in "clients/"*.conf; do
+  client_name="$(basename "$client_config" .conf)"
+
+  for server_config in "servers/"*.conf; do
+    server_name="$(basename "$server_config" .conf)"
+    UpdateCmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
+
+    if [[ -n "$UpdateCmd" ]]; then
+      echo "$client_name:$server_name... "
+      "$DIR/emit-client" $UpdateCmd "$server_name" "$client_name"
+    fi
+  done
+done
+
+echo Done.
