@@ -222,6 +222,30 @@ ssh_emit() {
   ( echo 'set -x'; shell_emit "$@" ) | ssh -T "$SSH_SERVER"
 }
 
+echo_wgconf() {
+  if [[ "$WG_QUICK" == "yes" || "$WG_OPENWRT" == "yes" ]]; then
+    echo "$@"
+  fi
+}
+
+echo_wgquick() {
+  if [[ "$WG_QUICK" == "yes" ]]; then
+    echo "$@"
+  fi
+}
+
+echo_openwrt() {
+  if [[ "$WG_OPENWRT" == "yes" ]]; then
+    echo "$@"
+  fi
+}
+
+if_not_empty() {
+  key="$1"
+  shift
+  [[ -z "$key" ]] || [[ "$key" == "no" ]] || "$@"
+}
+
 emit_config_interface() {
   local interface_config="$1"
   local interface_name=$(basename "$interface_config" .conf)
@@ -241,32 +265,15 @@ emit_config_interface() {
     interface_address="$(alloc_address "$interface_name" "$interface_publickey" "$start_ip" "$end_ip")/32"
   fi
 
-  echo "[Interface]"
-  echo "PrivateKey=$interface_privatekey"
-  if [[ -n "$interface_fwmark" ]]; then
-    echo "FwMark=$interface_fwmark"
-  fi
-  if [[ "$WG_QUICK" == "yes" ]]; then
-    if [[ -n "$interface_address" ]]; then
-      echo "Address=$interface_address"
-    fi
-    if [[ -n "$interface_listenport" ]]; then
-      echo "ListenPort=$interface_listenport"
-    fi
-    if [[ -n "$interface_default_gateway" ]]; then
-      echo "PostUp = sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
-      echo "PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
-    fi
-    if [[ -n "$peer_dns" ]]; then
-      echo "DNS=$peer_dns"
-    fi
-    if [[ -n "$interface_mtu" ]]; then
-      echo "MTU=$interface_mtu"
-    fi
-    if [[ -n "$peer_mtu" ]]; then
-      echo "MTU=$peer_mtu"
-    fi
-  fi
+  echo_wgconf "[Interface]"
+  echo_wgconf "PrivateKey=$interface_privatekey"
+  if_not_empty "$interface_fwmark" echo_wgconf "FwMark=$interface_fwmark"
+  if_not_empty "$interface_address" echo_wgquick "Address=$interface_address"
+  if_not_empty "$interface_listenport" echo_wgquick "ListenPort=$interface_listenport"
+  if_not_empty "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_not_empty "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_not_empty "$peer_dns" echo_wgquick "DNS=$peer_dns"
+  if_not_empty "$peer_mtu" echo_wgquick "MTU=$peer_mtu"
 
   echo
 }
@@ -297,26 +304,17 @@ emit_config_peer() {
     peer_address=$(alloc_address "$peer_name" "$peer_publickey" "$start_ip" "$end_ip")
   fi
 
-  echo "[Peer]"
-  echo "PublicKey=$peer_publickey"
-  if [[ -n "$psk" ]]; then
-    echo "PresharedKey=$psk"
-  fi
-  if [[ -n "$peer_endpoint" ]]; then
-    echo "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
-  fi
-  if [[ -n "$interface_keepalive" ]]; then
-    echo "PersistentKeepalive=$interface_keepalive"
-  fi
-  if [[ -n "$peer_address" ]]; then
-    echo "AllowedIPs=$peer_address"
-  fi
+  echo_wgconf "[Peer]"
+  echo_wgconf "PublicKey=$peer_publickey"
+  if_not_empty "$psk" echo_wgconf "PresharedKey=$psk"
+  if_not_empty "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
+  if_not_empty "$interface_keepalive" echo_wgconf "PersistentKeepalive=$interface_keepalive"
+  if_not_empty "$peer_address" echo_wgconf "AllowedIPs=$peer_address"
+
   for route in $peer_routes; do
-    echo "AllowedIPs=$route"
+    echo_wgconf "AllowedIPs=$route"
   done
-  if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
-    echo "AllowedIPs=0.0.0.0/0"
-  fi
+  if_not_empty "$WG_DEFAULT_GW" echo_wgconf "AllowedIPs=0.0.0.0/0"
 
   echo
 }
