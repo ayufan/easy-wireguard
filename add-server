@@ -11,6 +11,8 @@ if [[ $# -ne 5 ]]; then
   exit 1
 fi
 
+validate_name "$1"
+
 if [[ -e "servers/$1.conf" ]]; then
   echo "The servers/$1.conf already exist!"
   exit 1

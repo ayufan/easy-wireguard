@@ -11,6 +11,8 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 
+validate_name "$1"
+
 if [[ -e "clients/$1.conf" ]]; then
   stderr "The $1.conf already exist!"
   exit 1

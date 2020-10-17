@@ -17,6 +17,10 @@ get_value() {
   fi
 
   (
+    for i; do
+      unset "$i"
+    done
+
     source "$config"
 
     for i; do
@@ -65,6 +69,13 @@ get_psk() {
 
 stderr() {
   echo "$@" 1>&2
+}
+
+validate_name() {
+  if [[ ! $1 =~ ^[a-z0-9_]+$ ]]; then
+    stderr "The '$1' needs to be ^[a-z0-9_]+$."
+    return 1
+  fi
 }
 
 atoi() {
