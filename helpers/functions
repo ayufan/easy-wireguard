@@ -103,7 +103,7 @@ ip_network() {
   local netmask="${ips[1]}"
 
   if [[ -z "$netmask" ]] || [[ "$netmask" == 32 ]]; then
-    echo "$ip/32"
+    echo "$ip"
     return 0
   fi
 

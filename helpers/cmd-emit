@@ -352,7 +352,7 @@ emit_config_peer() {
   if_ne "$psk" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.preshared_key=${psk}"
 
   if_ne "$peer_endpoint" echo_wgquick "Endpoint=$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}"
-  if_ne "$peer_endpoint" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] endpoint=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\""
+  if_ne "$peer_endpoint" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] comment=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\" endpoint=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\""
   if_ne "$peer_endpoint" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.endpoint_host=${peer_endpoint}"
   if_ne "$peer_endpoint" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.endpoint_port=${peer_listenport:-$DEFAULT_LISTEN_PORT}"
 
@@ -363,11 +363,13 @@ emit_config_peer() {
   echo_wgquick "AllowedIPs=$peer_address"
   echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address}"
   echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.route_allowed_ips=1"
+  echo_mikrotik ":if ([/ip/route/find dst-address=\"${peer_address}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${peer_address}\" gateway=\"${interface_name}\" }"
 
   for route in $peer_routes; do
     route=$(ip_network "$route")
     echo_wgquick "AllowedIPs=$route"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route\")"
+    echo_mikrotik ":if ([/ip/route/find dst-address=\"${route}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${route}\" gateway=\"${interface_name}\" }"
     echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route}"
   done
 
