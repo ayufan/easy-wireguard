@@ -86,7 +86,7 @@ atoi() {
   IP=${IP#*.}
   done
   echo $IPNUM
-} 
+}
 
 itoa() {
   #returns the dotted-decimal ascii form of an IP arg passed in integer format
@@ -94,6 +94,23 @@ itoa() {
   echo -n $(($(($((${1}/256))/256))%256)).
   echo -n $(($((${1}/256))%256)).
   echo $((${1}%256))
+}
+
+ip_network() {
+  local IFS=/
+  local ips=( $1 )
+  local ip="${ips[0]}"
+  local netmask="${ips[1]}"
+
+  if [[ -z "$netmask" ]] || [[ "$netmask" == 32 ]]; then
+    echo "$ip/32"
+    return 0
+  fi
+
+  local mask=$((0xffffffff << (32 - $netmask)))
+  local ip=$(atoi "$ip")
+  local ip=$(($ip & $mask))
+  echo "$(itoa "$ip")/$netmask"
 }
 
 alloc_address() {

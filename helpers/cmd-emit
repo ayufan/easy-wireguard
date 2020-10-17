@@ -337,6 +337,7 @@ emit_config_peer() {
   if [[ -z "$peer_address" ]]; then
     peer_address=$(alloc_address "$peer_name" "$peer_publickey" "$start_ip" "$end_ip")
   fi
+  peer_address=$(ip_network "$peer_address")
 
   echo_wgquick "[Peer]"
   echo_openwrt_uci "uci set network.${interface_name}_${peer_name}=wireguard_${interface_name}"
@@ -364,6 +365,7 @@ emit_config_peer() {
   echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.route_allowed_ips=1"
 
   for route in $peer_routes; do
+    route=$(ip_network "$route")
     echo_wgquick "AllowedIPs=$route"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route\")"
     echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route}"
