@@ -2,8 +2,7 @@
 
 MODE=
 
-export WG_QUICK=${WG_QUICK:-yes}
-export WG_OPENWRT=${WG_OPENWRT:-no}
+export WG_OUTPUT=wg-quick
 export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 APP_NAME="$0"
@@ -38,14 +37,17 @@ for arg; do
 
     --wg-quick)
       shift
-      export WG_QUICK=yes
-      export WG_OPENWRT=no
+      export WG_OUTPUT=wg-quick
       ;;
 
     --openwrt)
       shift
-      export WG_QUICK=no
-      export WG_OPENWRT=yes
+      export WG_OUTPUT=openwrt
+      ;;
+
+    --mikrotik)
+      shift
+      export WG_OUTPUT=mikrotik
       ;;
 
     --default)
@@ -145,7 +147,7 @@ qr_emit() {
 
 shell_emit() {
   interface_name="wg-${server_name}"
-  if [[ "$WG_OPENWRT" == "yes" ]]; then
+  if [[ "$WG_OUTPUT" == "openwrt" ]]; then
     interface_name="wireguard"
   fi
 
@@ -156,14 +158,14 @@ shell_emit() {
   echo "EOF"
   echo ""
 
-  if [[ "$WG_QUICK" == "yes" ]]; then
+  if [[ "$WG_OUTPUT" == "wg-quick" ]]; then
     echo ""
     echo "systemctl enable wg-quick@wg-${server_name}.service"
     echo "systemctl restart wg-quick@wg-${server_name}.service"
     echo ""
   fi
 
-  if [[ "$WG_OPENWRT" == "yes" ]]; then
+  if [[ "$WG_OUTPUT" == "openwrt" ]]; then
     cat <<"EOF"
 cat <<"WGEOF" > /etc/hotplug.d/iface/99-wireguard
 #!/bin/sh
@@ -223,19 +225,19 @@ ssh_emit() {
 }
 
 echo_wgconf() {
-  if [[ "$WG_QUICK" == "yes" || "$WG_OPENWRT" == "yes" ]]; then
+  if [[ "$WG_OUTPUT" == "wg-quick" || "$WG_OUTPUT" == "openwrt" ]]; then
     echo "$@"
   fi
 }
 
 echo_wgquick() {
-  if [[ "$WG_QUICK" == "yes" ]]; then
+  if [[ "$WG_OUTPUT" == "wg-quick" ]]; then
     echo "$@"
   fi
 }
 
 echo_openwrt() {
-  if [[ "$WG_OPENWRT" == "yes" ]]; then
+  if [[ "$WG_OUTPUT" == "openwrt" ]]; then
     echo "$@"
   fi
 }
