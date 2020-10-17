@@ -9,7 +9,6 @@ source "$DIR/helpers/cmd-emit"
 
 run_server_and_client "$@"
 
-load_config "$server_config"
 emit_config_interface "$client_config" "$server_config"
 emit_config_peer "$server_config" "$client_config"
 emit_config_post

@@ -271,7 +271,7 @@ emit_config_interface() {
   fi
 
   if [[ -z "$interface_address" ]]; then
-    interface_address="$(alloc_address "$interface_config_name" "$interface_publickey" "$start_ip" "$end_ip")/32"
+    interface_address="$(require_address_idx "$peer_config" "$interface_config")"
   fi
 
   echo_wgquick "[Interface]"
@@ -327,15 +327,14 @@ emit_config_peer() {
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
   local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_config_name}")
+  local psk=$(get_psk "$peer_config" "$interface_config")
 
   if [[ "$peer_disallowed" == 0 ]]; then
     return 0
   fi
 
-  local psk=$(get_psk "$peer_config" "$interface_config")
-
   if [[ -z "$peer_address" ]]; then
-    peer_address=$(alloc_address "$peer_name" "$peer_publickey" "$start_ip" "$end_ip")
+    peer_address="$(require_address_idx "$interface_config" "$peer_config")"
   fi
   peer_address=$(ip_network "$peer_address")
 

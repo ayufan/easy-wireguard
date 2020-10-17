@@ -42,6 +42,10 @@ require_value() {
   fi
 
   (
+    for i; do
+      unset "$i"
+    done
+
     source "$config"
 
     for i; do
@@ -54,6 +58,8 @@ require_value() {
     stderr "$config the $i is missing"
     return 1
   )
+
+  return $?
 }
 
 get_psk() {
@@ -149,7 +155,35 @@ alloc_address() {
   return 1
 }
 
-load_config() {
-  start_ip=$(get_value "$1" "StartIp")
-  end_ip=$(get_value "$1" "EndIp")
+next_address_idx() {
+  [[ -f clients/index ]] || echo 0 > clients/index
+
+  idx=$(cat clients/index)
+  echo $(($idx+1)) > clients/index
+  echo "$idx"
+}
+
+require_address_idx() {
+  local server_config="$1"
+  local peer_config="$2"
+
+  if [[ -z "$server_config" ]]; then
+    stderr "Cannot generate interface_address for $peer_config."
+    return 1
+  fi
+
+  local start_ip=$(require_value "$server_config" "StartIp")
+  local end_ip=$(require_value "$server_config" "EndIp")
+  local idx_i=$(require_value "$peer_config" "AddressIdx")
+
+  local start_ip_i=$(atoi "$start_ip")
+  local end_ip_i=$(atoi "$end_ip")
+  local ip_i=$(($start_ip_i+$idx_i))
+
+  if [[ $ip_i -ge $end_ip_i ]]; then
+    stderr "The $idx is not within a $start_ip:$end_ip."
+    return 1
+  fi
+
+  echo "$(itoa "$ip_i")/32"
 }

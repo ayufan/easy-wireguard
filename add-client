@@ -26,6 +26,7 @@ cat <<EOF > clients/$1.conf
 PrivateKey="$PrivateKey"
 PublicKey="$PublicKey"
 PresharedKey="$PresharedKey"
+AddressIdx="$(next_address_idx)"
 PersistentKeepalive=25
 Routes=""
 EOF

@@ -9,7 +9,6 @@ source "$DIR/helpers/cmd-emit"
 
 run_server "$@"
 
-load_config "$server_config"
 emit_config_interface "$server_config"
 
 for other_server_config in "servers/"*.conf; do
