@@ -21,3 +21,5 @@ done
 for client_config in "clients/"*.conf; do
   emit_config_peer "$client_config" "$server_config"
 done
+
+emit_config_post

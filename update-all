@@ -6,15 +6,35 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 source "$DIR/helpers/functions"
 
+match() {
+  key="$1"
+  shift
+  if [[ $# -eq 0 ]]; then
+    return 0
+  fi
+
+  for match; do
+    if [[ "$key" == $match ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 echo "Servers:"
 for server_config in "servers/"*.conf; do
   server_name="$(basename "$server_config" .conf)"
 
-  UpdateCmd=$(get_value "$server_config" "UpdateCmd")
+  if ! match "$server_name" "$@"; then
+    continue
+  fi
 
-  if [[ -n "$UpdateCmd" ]]; then
+  server_updatecmd=$(get_value "$server_config" "UpdateCmd")
+
+  if [[ -n "$server_updatecmd" ]]; then
     echo "$server_name... "
-    "$DIR/emit-server" $UpdateCmd "$server_name"
+    "$DIR/emit-server" $server_updatecmd "$server_name"
   fi
 done
 
@@ -24,13 +44,22 @@ echo "Clients:"
 for client_config in "clients/"*.conf; do
   client_name="$(basename "$client_config" .conf)"
 
+  if ! match "$client_name" "$@"; then
+    continue
+  fi
+
   for server_config in "servers/"*.conf; do
     server_name="$(basename "$server_config" .conf)"
-    UpdateCmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
+    client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
+    client_disallowed=$(get_value "$client_config" "Interface_$server_name")
 
-    if [[ -n "$UpdateCmd" ]]; then
+    if [[ "$client_disallowed" == 0 ]]; then
+      continue
+    fi
+
+    if [[ -n "$client_updatecmd" ]]; then
       echo "$client_name:$server_name... "
-      "$DIR/emit-client" $UpdateCmd "$server_name" "$client_name"
+      "$DIR/emit-client" $client_updatecmd "$server_name" "$client_name"
     fi
   done
 done
