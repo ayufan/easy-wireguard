@@ -291,9 +291,9 @@ emit_config_interface() {
   echo_mikrotik ":if ([/ip/address/find address=\"$interface_address\" interface=\"$interface_name\"]) do={} else={ /ip/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
   echo_openwrt_uci "uci set network.$interface_name.addresses=$interface_address"
 
-  echo_wgquick "ListenPort=${interface_listenport:-$DEFAULT_LISTEN_PORT}"
-  echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] listen-port=\"${interface_listenport:-$DEFAULT_LISTEN_PORT}\""
-  echo_openwrt_uci "uci set network.$interface_name.listen_port=${interface_listenport:-$DEFAULT_LISTEN_PORT}"
+  if_ne "$interface_listenport" echo_wgquick "ListenPort=${interface_listenport}"
+  if_ne "$interface_listenport" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] listen-port=\"${interface_listenport}\""
+  if_ne "$interface_listenport" echo_openwrt_uci "uci set network.$interface_name.listen_port=${interface_listenport}"
 
   if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
   if_ne "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
