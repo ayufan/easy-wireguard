@@ -240,7 +240,7 @@ echo_openwrt() {
   fi
 }
 
-if_not_empty() {
+if_ne() {
   key="$1"
   shift
   [[ -z "$key" ]] || [[ "$key" == "no" ]] || "$@"
@@ -267,13 +267,13 @@ emit_config_interface() {
 
   echo_wgconf "[Interface]"
   echo_wgconf "PrivateKey=$interface_privatekey"
-  if_not_empty "$interface_fwmark" echo_wgconf "FwMark=$interface_fwmark"
-  if_not_empty "$interface_address" echo_wgquick "Address=$interface_address"
-  if_not_empty "$interface_listenport" echo_wgquick "ListenPort=$interface_listenport"
-  if_not_empty "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
-  if_not_empty "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
-  if_not_empty "$peer_dns" echo_wgquick "DNS=$peer_dns"
-  if_not_empty "$peer_mtu" echo_wgquick "MTU=$peer_mtu"
+  if_ne "$interface_fwmark" echo_wgconf "FwMark=$interface_fwmark"
+  if_ne "$interface_address" echo_wgquick "Address=$interface_address"
+  if_ne "$interface_listenport" echo_wgquick "ListenPort=$interface_listenport"
+  if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_ne "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_ne "$peer_dns" echo_wgquick "DNS=$peer_dns"
+  if_ne "$peer_mtu" echo_wgquick "MTU=$peer_mtu"
 
   echo
 }
@@ -306,15 +306,15 @@ emit_config_peer() {
 
   echo_wgconf "[Peer]"
   echo_wgconf "PublicKey=$peer_publickey"
-  if_not_empty "$psk" echo_wgconf "PresharedKey=$psk"
-  if_not_empty "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
-  if_not_empty "$interface_keepalive" echo_wgconf "PersistentKeepalive=$interface_keepalive"
-  if_not_empty "$peer_address" echo_wgconf "AllowedIPs=$peer_address"
+  if_ne "$psk" echo_wgconf "PresharedKey=$psk"
+  if_ne "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport-DEFAULT_LISTEN_PORT}"
+  if_ne "$interface_keepalive" echo_wgconf "PersistentKeepalive=$interface_keepalive"
+  if_ne "$peer_address" echo_wgconf "AllowedIPs=$peer_address"
 
   for route in $peer_routes; do
     echo_wgconf "AllowedIPs=$route"
   done
-  if_not_empty "$WG_DEFAULT_GW" echo_wgconf "AllowedIPs=0.0.0.0/0"
+  if_ne "$WG_DEFAULT_GW" echo_wgconf "AllowedIPs=0.0.0.0/0"
 
   echo
 }
