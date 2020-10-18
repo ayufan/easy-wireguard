@@ -208,6 +208,8 @@ emit_config_peer() {
     interface_name="$interface_config_name"
   fi
 
+  local interface_disable_ipv6=$(get_value "$interface_config" "DisableIPv6")
+
   local peer_config="$1"
 
   local peer_name=$(basename "$peer_config" .conf)
@@ -231,7 +233,10 @@ emit_config_peer() {
   fi
   peer_address=$(ip_network "$peer_address")
 
-  if [[ -z "$peer_address6" ]]; then
+  if [[ -n "$interface_disable_ipv6" ]]; then
+    peer_address6=""
+    peer_routes6=""
+  elif [[ -z "$peer_address6" ]]; then
     peer_address6="$(get_address6_prefix "$interface_config" "$peer_config")"
   fi
 

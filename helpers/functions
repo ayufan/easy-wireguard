@@ -197,8 +197,9 @@ get_address6_prefix() {
   fi
 
   local prefix6=$(get_value "$server_config" "Prefix6")
+  local disable_ipv6=$(get_value "$peer_config" "DisableIPv6")
 
-  if [[ -z "$prefix6" ]]; then
+  if [[ -z "$prefix6" ]] || [[ -n "$disable_ipv6" ]]; then
     return 0
   fi
 
