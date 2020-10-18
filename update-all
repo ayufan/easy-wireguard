@@ -36,10 +36,6 @@ for client_config in "clients/"*.conf; do
     client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
     client_disallowed=$(get_value "$client_config" "Interface_$server_name")
 
-    if ! match "$server_name" "$@"; then
-      continue
-    fi
-
     if [[ "$client_disallowed" == 0 ]]; then
       continue
     fi

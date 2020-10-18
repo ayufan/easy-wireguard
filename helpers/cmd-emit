@@ -183,10 +183,10 @@ emit_config_interface() {
   if_ne "$interface_listenport" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] listen-port=\"${interface_listenport}\""
   if_ne "$interface_listenport" echo_openwrt "uci set network.$interface_name.listen_port=${interface_listenport}"
 
-  if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv4.ip_forward=1; iptables -I FORWARD -i %i -j ACCEPT; iptables -t nat -I POSTROUTING -o $interface_default_gateway -j MASQUERADE"
   if_ne "$interface_default_gateway" echo_wgconf "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
 
-  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv6.conf.all.forwarding=1; ip6tables -A FORWARD -i %i -j ACCEPT"
+  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv6.conf.all.forwarding=1; ip6tables -I FORWARD -i %i -j ACCEPT"
   if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostDown=ip6tables -D FORWARD -i %i -j ACCEPT"
 
   if_ne "$peer_dns" echo_wgconf "DNS=$peer_dns"
