@@ -300,9 +300,25 @@ emit_config_peer() {
 }
 
 emit_config_post() {
+  local interface_config="$1"
+  local interface_config_name=$(basename "$interface_config" .conf)
+  local interface_address6=$(get_value "$interface_config" "Address6")
+  local interface_default_gateway=$(get_value "$interface_config" "DefaultGateway")
+
   echo_wgquick "EOF"
   echo_wgquick "systemctl enable wg-quick@${interface_name}.service"
   echo_wgquick "systemctl restart wg-quick@${interface_name}.service"
+
+  if [[ -n "$interface_address6" ]] && [[ -n "$interface_default_gateway" ]]; then
+    echo_wgquick "cat <<EOF > /etc/ndppd.conf"
+    echo_wgquick "proxy $interface_default_gateway {"
+    echo_wgquick "  rule $(ip6_network "$interface_address6") { static }"
+    echo_wgquick "}"
+    echo_wgquick "EOF"
+
+    echo_wgquick "systemctl enable ndppd.service"
+    echo_wgquick "systemctl restart ndppd.service"
+  fi
 
   echo_openwrt "uci commit"
 

@@ -21,7 +21,7 @@ emit_server() {
     emit_config_peer "$client_config" "$server_config"
   done
 
-  emit_config_post
+  emit_config_post "$server_config"
 }
 
 if [[ -n "$SHOW_HELP" ]] || [[ $# -ne 1 ]]; then
