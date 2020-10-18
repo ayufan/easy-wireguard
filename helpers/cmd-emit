@@ -1,38 +1,17 @@
 #!/bin/bash
 
-MODE=
-
-export WG_OUTPUT=${WG_OUTPUT:-wg-quick}
-export WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
+MODE=echo
+WG_OUTPUT=${WG_OUTPUT:-wg-conf}
+WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 APP_NAME="$0"
 SHOW_HELP=
 
 for arg; do
   case $arg in
-    --qr)
+    --wg-conf)
       shift
-      MODE=qr
-      ;;
-
-    --shell)
-      shift
-      MODE=shell
-      ;;
-
-    --write)
-      shift
-      MODE=write
-      ;;
-
-    --up)
-      shift
-      MODE=up
-      ;;
-
-    --down)
-      shift
-      MODE=down
+      export WG_OUTPUT=wg-conf
       ;;
 
     --wg-quick)
@@ -40,9 +19,9 @@ for arg; do
       export WG_OUTPUT=wg-quick
       ;;
 
-    --openwrt-uci)
+    --openwrt)
       shift
-      export WG_OUTPUT=openwrt-uci
+      export WG_OUTPUT=openwrt
       ;;
 
     --mikrotik)
@@ -53,6 +32,21 @@ for arg; do
     --default)
       shift
       export WG_DEFAULT_GW=yes
+      ;;
+
+    --echo)
+      shift
+      export MODE=echo
+      ;;
+
+    --qr)
+      shift
+      MODE=qr
+      ;;
+
+    --shell)
+      shift
+      MODE=shell
       ;;
 
     --ssh)
@@ -80,143 +74,23 @@ done
 usage() {
   stderr "$APP_NAME" "[options]" "$@"
   stderr ""
-  stderr "Options:"
+  stderr "Modes:"
+  stderr " --echo: show the output (default)"
+  stderr " --shell: execute commands on shell"
   stderr " --qr: output QR code"
-  stderr " --shell: output shell commands"
-  stderr " --write: write configuration file (to configs/wg-*.conf)"
-  stderr " --up: wg-quick up"
-  stderr " --down: wg-quick down"
   stderr " --ssh USER@HOST: upload ssh config to remote machine"
-  stderr " --wg-quick: output wg-quick compatible configuration"
-  stderr " --openwrt-uci: output openwrt compatible configuration"
+  stderr ""
+  stderr "Options:"
+  stderr " --wg-conf: output wg-quick compatible configuration (default)"
+  stderr " --wg-quick: output wg-quick compatible commands"
+  stderr " --openwrt: output openwrt compatible configuration"
+  stderr " --mikrotik: output mikrotik compatible configuration"
   stderr ""
   exit 1
 }
 
-run_server_and_client() {
-  if [[ -n "$SHOW_HELP" ]] || [[ $# -ne 2 ]]; then
-    usage "<server-config>" "<client-config>"
-    exit 1
-  fi
-
-  server_name="$1"
-  server_config="servers/$server_name.conf"
-
-  client_name="$2"
-  client_config="clients/$client_name.conf"
-
-  if [[ ! -e "$server_config" ]]; then
-    stderr "The $server_config does not exist!"
-    exit 1
-  fi
-
-  if [[ ! -e "$client_config" ]]; then
-    stderr "The $client_config does not exist!"
-    exit 1
-  fi
-
-  if [[ -n "$MODE" ]]; then
-    ${MODE}_emit "$0" "$@"
-    exit 0
-  fi
-}
-
-run_server() {
-  if [[ -n "$SHOW_HELP" ]] || [[ $# -ne 1 ]]; then
-    usage "<server-config>"
-    exit 1
-  fi
-
-  server_name="$1"
-  server_config="servers/$server_name.conf"
-
-  if [[ ! -e "$server_config" ]]; then
-    stderr "The $server_config does not exist!"
-    exit 1
-  fi
-
-  if [[ -n "$MODE" ]]; then
-    ${MODE}_emit "$0" "$@"
-    exit 0
-  fi
-}
-
-qr_emit() {
-  $@ | qrencode -t ansiutf8
-}
-
-shell_emit() {
-  export interface_name="wg-${server_name}"
-  if [[ "$WG_OUTPUT" == "openwrt" || "$WG_OUTPUT" == "openwrt-uci" ]]; then
-    export interface_name="wg_${server_name}"
-  fi
-
-  config=$($@)
-
-  echo_wgquick "mkdir -p /etc/wireguard/"
-  echo_wgquick "umask 0177"
-  echo_wgquick "echo \"$config\" > /etc/wireguard/${interface_name}.conf"
-  echo_mikrotik "$config"
-  echo_openwrt_uci "$config"
-
-  echo_wgquick "systemctl enable wg-quick@${interface_name}.service"
-  echo_wgquick "systemctl restart wg-quick@${interface_name}.service"
-
-  echo_openwrt_uci "luci-reload"
-  echo_openwrt_uci "ifup ${interface_name}"
-  echo_openwrt_uci "grep -q /usr/bin/wireguard_watchdog /etc/crontabs/root || echo '* * * * * /usr/bin/wireguard_watchdog' >> /etc/crontabs/root"
-}
-
-config_file() {
-  if [[ -n "$client_name" ]]; then
-    mkdir -p "$(pwd)/configs/${client_name}"
-    if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
-      echo "$(pwd)/configs/${client_name}/${server_name}def.conf"
-    else
-      echo "$(pwd)/configs/${client_name}/${server_name}.conf"
-    fi
-  else
-    mkdir -p "$(pwd)/configs"
-    echo "$(pwd)/configs/${server_name}.conf"
-  fi
-}
-
-write_emit() {
-  file="$(config_file)"
-  umask 0077
-  echo "write $file"
-  $@ > "$file"
-}
-
-wg_quick_emit() {
-  file="$(config_file)"
-  ACTION="$1"
-  shift
-
-  write_emit "$@"
-  echo "wg-quick $ACTION $file"
-  wg-quick "$ACTION" "$file"
-}
-
-up_emit() {
-  wg_quick_emit "up" "$@"
-}
-
-down_emit() {
-  wg_quick_emit "down" "$@"
-}
-
-ssh_emit() {
-  echo "ssh $SSH_SERVER"
-  (
-    echo_wgquick 'set -x'
-    echo_openwrt_uci 'set -x'
-    shell_emit "$@"
-  ) | ssh -T "$SSH_SERVER"
-}
-
-echo_wgquick() {
-  if [[ "$WG_OUTPUT" == "wg-quick" ]]; then
+echo_wgconf() {
+  if [[ "$WG_OUTPUT" == "wg-conf" ]] || [[ "$WG_OUTPUT" == "wg-quick" ]]; then
     echo "$@"
   fi
 }
@@ -233,12 +107,6 @@ echo_openwrt() {
   fi
 }
 
-echo_openwrt_uci() {
-  if [[ "$WG_OUTPUT" == "openwrt-uci" ]]; then
-    echo "$@"
-  fi
-}
-
 echo_mikrotik() {
   if [[ "$WG_OUTPUT" == "mikrotik" ]]; then
     echo "$@"
@@ -249,6 +117,17 @@ if_ne() {
   key="$1"
   shift
   [[ -z "$key" ]] || [[ "$key" == "no" ]] || "$@"
+}
+
+emit_config_pre() {
+  export interface_name="wg-${server_name}"
+  if [[ "$WG_OUTPUT" == "openwrt" ]]; then
+    export interface_name="wg_${server_name}"
+  fi
+
+  echo_wgquick "mkdir -p /etc/wireguard/"
+  echo_wgquick "umask 0177"
+  echo_wgquick "cat <<EOF > /etc/wireguard/${interface_name}.conf"
 }
 
 emit_config_interface() {
@@ -279,44 +158,44 @@ emit_config_interface() {
     interface_address6="$(get_address6_prefix "$peer_config" "$interface_config")"
   fi
 
-  echo_wgquick "[Interface]"
+  echo_wgconf "[Interface]"
   echo_mikrotik ":if ([/interface/wireguard/find name=\"$interface_name\"]) do={} else={ /interface/wireguard/add name=\"$interface_name\" }"
   echo_mikrotik "/interface/wireguard/peers/remove [find interface=\"$interface_name\"]"
-  echo_openwrt_uci "uci set network.$interface_name=interface"
-  echo_openwrt_uci "uci set network.$interface_name.proto=wireguard"
-  echo_openwrt_uci "uci set network.$interface_name.private_key=$interface_privatekey"
+  echo_openwrt "uci set network.$interface_name=interface"
+  echo_openwrt "uci set network.$interface_name.proto=wireguard"
+  echo_openwrt "uci set network.$interface_name.private_key=$interface_privatekey"
 
-  echo_wgquick "PrivateKey=$interface_privatekey"
+  echo_wgconf "PrivateKey=$interface_privatekey"
   echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] private-key=\"$interface_privatekey\""
 
-  if_ne "$interface_fwmark" echo_wgquick "FwMark=$interface_fwmark"
-  if_ne "$interface_fwmark" echo_openwrt_uci "uci set network.$interface_name.fwmark=$interface_fwmark"
+  if_ne "$interface_fwmark" echo_wgconf "FwMark=$interface_fwmark"
+  if_ne "$interface_fwmark" echo_openwrt "uci set network.$interface_name.fwmark=$interface_fwmark"
 
-  echo_wgquick "Address=$interface_address"
+  echo_wgconf "Address=$interface_address"
   echo_mikrotik ":if ([/ip/address/find address=\"$interface_address\" interface=\"$interface_name\"]) do={} else={ /ip/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
-  echo_openwrt_uci "uci set network.$interface_name.addresses=$interface_address"
+  echo_openwrt "uci set network.$interface_name.addresses=$interface_address"
 
-  if_ne "$interface_address6" echo_wgquick "Address=$interface_address6"
+  if_ne "$interface_address6" echo_wgconf "Address=$interface_address6"
   if_ne "$interface_address6" echo_mikrotik ":if ([/ip6/address/find address=\"$interface_address6\" interface=\"$interface_name\"]) do={} else={ /ip6/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
-  if_ne "$interface_address6" echo_openwrt_uci "uci add_list network.$interface_name.addresses=$interface_address6"
+  if_ne "$interface_address6" echo_openwrt "uci add_list network.$interface_name.addresses=$interface_address6"
 
-  if_ne "$interface_listenport" echo_wgquick "ListenPort=${interface_listenport}"
+  if_ne "$interface_listenport" echo_wgconf "ListenPort=${interface_listenport}"
   if_ne "$interface_listenport" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] listen-port=\"${interface_listenport}\""
-  if_ne "$interface_listenport" echo_openwrt_uci "uci set network.$interface_name.listen_port=${interface_listenport}"
+  if_ne "$interface_listenport" echo_openwrt "uci set network.$interface_name.listen_port=${interface_listenport}"
 
-  if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
-  if_ne "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+  if_ne "$interface_default_gateway" echo_wgconf "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
 
-  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv6.conf.all.fowarding=1; iptables -A FORWARD -i %i -j ACCEPT"
-  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgquick "PostDown=ip6tables -D FORWARD -i %i -j ACCEPT"
+  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv6.conf.all.fowarding=1; iptables -A FORWARD -i %i -j ACCEPT"
+  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostDown=ip6tables -D FORWARD -i %i -j ACCEPT"
 
-  if_ne "$peer_dns" echo_wgquick "DNS=$peer_dns"
+  if_ne "$peer_dns" echo_wgconf "DNS=$peer_dns"
 
-  if_ne "$peer_mtu" echo_wgquick "MTU=$peer_mtu"
+  if_ne "$peer_mtu" echo_wgconf "MTU=$peer_mtu"
   if_ne "$peer_mtu" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] mtu=\"$peer_mtu\""
-  if_ne "$peer_mtu" echo_openwrt_uci "uci set network.$interface_name.mtu=$peer_mtu"
+  if_ne "$peer_mtu" echo_openwrt "uci set network.$interface_name.mtu=$peer_mtu"
 
-  echo_openwrt_uci "uci show network | grep '=wireguard_${interface_name}' | cut -d= -f1 | xargs -rn1 uci delete"
+  echo_openwrt "uci show network | grep '=wireguard_${interface_name}' | cut -d= -f1 | xargs -rn1 uci delete"
 
   echo
 }
@@ -356,63 +235,96 @@ emit_config_peer() {
     peer_address6="$(get_address6_prefix "$interface_config" "$peer_config")"
   fi
 
-  echo_wgquick "[Peer]"
-  echo_openwrt_uci "uci set network.${interface_name}_${peer_name}=wireguard_${interface_name}"
-  echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.description=${peer_name}"
+  echo_wgconf "[Peer]"
+  echo_openwrt "uci set network.${interface_name}_${peer_name}=wireguard_${interface_name}"
+  echo_openwrt "uci set network.${interface_name}_${peer_name}.description=${peer_name}"
 
-  echo_wgquick "PublicKey=$peer_publickey"
+  echo_wgconf "PublicKey=$peer_publickey"
   echo_mikrotik "/interface/wireguard/peers/add interface=\"$interface_name\" comment=\"$peer_name\" public-key=\"$peer_publickey\" allowed-address=\"$peer_address\""
-  echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.public_key=$peer_publickey"
+  echo_openwrt "uci set network.${interface_name}_${peer_name}.public_key=$peer_publickey"
 
-  if_ne "$psk" echo_wgquick "PresharedKey=$psk"
+  if_ne "$psk" echo_wgconf "PresharedKey=$psk"
   if_ne "$psk" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] preshared-key=\"$psk\""
-  if_ne "$psk" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.preshared_key=${psk}"
+  if_ne "$psk" echo_openwrt "uci set network.${interface_name}_${peer_name}.preshared_key=${psk}"
 
-  if_ne "$peer_endpoint" echo_wgquick "Endpoint=$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}"
+  if_ne "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}"
   if_ne "$peer_endpoint" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] comment=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\" endpoint=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\""
-  if_ne "$peer_endpoint" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.endpoint_host=${peer_endpoint}"
-  if_ne "$peer_endpoint" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.endpoint_port=${peer_listenport:-$DEFAULT_LISTEN_PORT}"
+  if_ne "$peer_endpoint" echo_openwrt "uci set network.${interface_name}_${peer_name}.endpoint_host=${peer_endpoint}"
+  if_ne "$peer_endpoint" echo_openwrt "uci set network.${interface_name}_${peer_name}.endpoint_port=${peer_listenport:-$DEFAULT_LISTEN_PORT}"
 
-  if_ne "$interface_keepalive" echo_wgquick "PersistentKeepalive=$interface_keepalive"
+  if_ne "$interface_keepalive" echo_wgconf "PersistentKeepalive=$interface_keepalive"
   if_ne "$interface_keepalive" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] persistent-keepalive=\"$interface_keepalive\""
-  if_ne "$interface_keepalive" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.persistent_keepalive=${interface_keepalive}"
+  if_ne "$interface_keepalive" echo_openwrt "uci set network.${interface_name}_${peer_name}.persistent_keepalive=${interface_keepalive}"
 
-  echo_wgquick "AllowedIPs=$peer_address"
-  echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address}"
-  echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.route_allowed_ips=1"
+  echo_wgconf "AllowedIPs=$peer_address"
+  echo_openwrt "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address}"
+  echo_openwrt "uci set network.${interface_name}_${peer_name}.route_allowed_ips=1"
   echo_mikrotik ":if ([/ip/route/find dst-address=\"${peer_address}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${peer_address}\" gateway=\"${interface_name}\" }"
 
-  if_ne "$peer_address6" echo_wgquick "AllowedIPs=$peer_address6"
-  if_ne "$peer_address6" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address6}"
+  if_ne "$peer_address6" echo_wgconf "AllowedIPs=$peer_address6"
+  if_ne "$peer_address6" echo_openwrt "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address6}"
   if_ne "$peer_address6" echo_mikrotik ":if ([/ip6/route/find dst-address=\"${peer_address6}\" gateway=\"${interface_name}\"]) do={} else={ /ip6/route/add dst-address=\"${peer_address6}\" gateway=\"${interface_name}\" }"
 
   if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
-    peer_routes="0.0.0.0/0"
+    peer_routes="$peer_routes 0.0.0.0/0"
 
     if [[ -n "$peer_address6" ]]; then
-      peer_routes6="::/0"
+      peer_routes6="$peer_routes6 ::/0"
     fi
   fi
 
   for route in $peer_routes; do
     route=$(ip_network "$route")
-    echo_wgquick "AllowedIPs=$route"
+    echo_wgconf "AllowedIPs=$route"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route\")"
     echo_mikrotik ":if ([/ip/route/find dst-address=\"${route}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${route}\" gateway=\"${interface_name}\" }"
-    echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route}"
+    echo_openwrt "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route}"
   done
 
   for route6 in $peer_routes6; do
-    echo_wgquick "AllowedIPs=$route6"
+    echo_wgconf "AllowedIPs=$route6"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route6\")"
     echo_mikrotik ":if ([/ip6/route/find dst-address=\"${route6}\" gateway=\"${interface_name}\"]) do={} else={ /ip6/route/add dst-address=\"${route6}\" gateway=\"${interface_name}\" }"
-    echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route6}"
+    echo_openwrt "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route6}"
   done
 
   echo
 }
 
 emit_config_post() {
-  echo_openwrt_uci "uci commit"
-  echo
+  echo_wgquick "EOF"
+  echo_wgquick "systemctl enable wg-quick@${interface_name}.service"
+  echo_wgquick "systemctl restart wg-quick@${interface_name}.service"
+
+  echo_openwrt "uci commit"
+
+  echo_openwrt "luci-reload"
+  echo_openwrt "ifup ${interface_name}"
+  echo_openwrt "grep -q /usr/bin/wireguard_watchdog /etc/crontabs/root || echo '* * * * * /usr/bin/wireguard_watchdog' >> /etc/crontabs/root"
+}
+
+echo_mode() {
+  eval "$@"
+}
+
+qr_mode() {
+  eval "$@" | qrencode -t ansiutf8
+}
+
+shell_mode() {
+  (
+    echo_wgquick 'set -x'
+    echo_openwrt 'set -x'
+    eval "$@"
+  ) | bash
+}
+
+ssh_mode() {
+  echo "ssh $SSH_SERVER"
+
+  (
+    echo_wgquick 'set -x'
+    echo_openwrt 'set -x'
+    eval "$@"
+  ) | ssh -T "$SSH_SERVER"
 }

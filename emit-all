@@ -10,20 +10,23 @@ rm -rf configs/*
 
 umask 0077
 
+mkdir -p "configs/"
+
 for server_config in "servers/"*.conf; do
   server_name="$(basename "$server_config" .conf)"
 
   echo "$server_name..."
 
-  "$DIR/emit-server" --write "$server_name"
+  "$DIR/emit-server" --wg-conf "$server_name" > "configs/${server_name}.conf"
 
   for client_config in "clients/"*.conf; do
     echo "$server_name:$client_name..."
 
     client_name="$(basename "$client_config" .conf)"
 
-    "$DIR/emit-client" --write "$server_name" "$client_name"
-    "$DIR/emit-client" --write --default "$server_name" "$client_name"
+    mkdir -p "configs/${client_name}/"
+    "$DIR/emit-client" --wg-conf "$server_name" "$client_name" > "configs/${client_name}/${server_name}.conf"
+    "$DIR/emit-client" --wg-conf --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.conf"
   done
 done
 

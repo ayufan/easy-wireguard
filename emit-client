@@ -7,8 +7,32 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 source "$DIR/helpers/functions"
 source "$DIR/helpers/cmd-emit"
 
-run_server_and_client "$@"
+emit_client() {
+  emit_config_pre
+  emit_config_interface "$client_config" "$server_config"
+  emit_config_peer "$server_config" "$client_config"
+  emit_config_post
+}
 
-emit_config_interface "$client_config" "$server_config"
-emit_config_peer "$server_config" "$client_config"
-emit_config_post
+if [[ -n "$SHOW_HELP" ]] || [[ $# -ne 2 ]]; then
+  usage "<server-config>" "<client-config>"
+  exit 1
+fi
+
+server_name="$1"
+server_config="servers/$server_name.conf"
+
+client_name="$2"
+client_config="clients/$client_name.conf"
+
+if [[ ! -e "$server_config" ]]; then
+  stderr "The $server_config does not exist!"
+  exit 1
+fi
+
+if [[ ! -e "$client_config" ]]; then
+  stderr "The $client_config does not exist!"
+  exit 1
+fi
+
+"${MODE}_mode" emit_client
