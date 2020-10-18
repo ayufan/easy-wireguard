@@ -187,3 +187,23 @@ require_address_idx() {
 
   echo "$(itoa "$ip_i")/32"
 }
+
+get_address6_prefix() {
+  local server_config="$1"
+  local peer_config="$2"
+
+  if [[ -z "$server_config" ]]; then
+    return 0
+  fi
+
+  local prefix6=$(get_value "$server_config" "Prefix6")
+
+  if [[ -z "$prefix6" ]]; then
+    return 0
+  fi
+
+  local key_hash=$(get_value "$peer_config" "PrivateKey" | sha256sum | awk '{print $1}')
+  local ip6="${prefix6}::${key_hash:56:4}:${key_hash:60:4}"
+
+  echo "${ip6/::::/::}"
+}

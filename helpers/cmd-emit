@@ -257,6 +257,7 @@ emit_config_interface() {
   local interface_publickey=$(require_value "$interface_config" "PublicKey")
   local interface_privatekey=$(require_value "$interface_config" "PrivateKey")
   local interface_address=$(get_value "$interface_config" "Address")
+  local interface_address6=$(get_value "$interface_config" "Address6")
   local interface_listenport=$(get_value "$interface_config" "ListenPort")
   local interface_default_gateway=$(get_value "$interface_config" "DefaultGateway")
   local interface_fwmark=$(get_value "$interface_config" "FwMark")
@@ -272,6 +273,10 @@ emit_config_interface() {
 
   if [[ -z "$interface_address" ]]; then
     interface_address="$(require_address_idx "$peer_config" "$interface_config")"
+  fi
+
+  if [[ -z "$interface_address6" ]]; then
+    interface_address6="$(get_address6_prefix "$peer_config" "$interface_config")"
   fi
 
   echo_wgquick "[Interface]"
@@ -291,12 +296,19 @@ emit_config_interface() {
   echo_mikrotik ":if ([/ip/address/find address=\"$interface_address\" interface=\"$interface_name\"]) do={} else={ /ip/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
   echo_openwrt_uci "uci set network.$interface_name.addresses=$interface_address"
 
+  if_ne "$interface_address6" echo_wgquick "Address=$interface_address6"
+  if_ne "$interface_address6" echo_mikrotik ":if ([/ip6/address/find address=\"$interface_address6\" interface=\"$interface_name\"]) do={} else={ /ip6/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
+  if_ne "$interface_address6" echo_openwrt_uci "uci add_list network.$interface_name.addresses=$interface_address6"
+
   if_ne "$interface_listenport" echo_wgquick "ListenPort=${interface_listenport}"
   if_ne "$interface_listenport" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] listen-port=\"${interface_listenport}\""
   if_ne "$interface_listenport" echo_openwrt_uci "uci set network.$interface_name.listen_port=${interface_listenport}"
 
   if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
   if_ne "$interface_default_gateway" echo_wgquick "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
+
+  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgquick "PostUp=sysctl net.ipv6.conf.all.fowarding=1; iptables -A FORWARD -i %i -j ACCEPT"
+  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgquick "PostDown=ip6tables -D FORWARD -i %i -j ACCEPT"
 
   if_ne "$peer_dns" echo_wgquick "DNS=$peer_dns"
 
@@ -322,7 +334,9 @@ emit_config_peer() {
   local peer_name=$(basename "$peer_config" .conf)
   local peer_publickey=$(require_value "$peer_config" "PublicKey")
   local peer_address=$(get_value "$peer_config" "Address")
+  local peer_address6=$(get_value "$peer_config" "Address6")
   local peer_routes=$(get_value "$peer_config" "Routes_${interface_config_name}" "Routes")
+  local peer_routes6=$(get_value "$peer_config" "Routes6_${interface_config_name}" "Routes6")
   local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
@@ -337,6 +351,10 @@ emit_config_peer() {
     peer_address="$(require_address_idx "$interface_config" "$peer_config")"
   fi
   peer_address=$(ip_network "$peer_address")
+
+  if [[ -z "$peer_address6" ]]; then
+    peer_address6="$(get_address6_prefix "$interface_config" "$peer_config")"
+  fi
 
   echo_wgquick "[Peer]"
   echo_openwrt_uci "uci set network.${interface_name}_${peer_name}=wireguard_${interface_name}"
@@ -364,6 +382,18 @@ emit_config_peer() {
   echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.route_allowed_ips=1"
   echo_mikrotik ":if ([/ip/route/find dst-address=\"${peer_address}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${peer_address}\" gateway=\"${interface_name}\" }"
 
+  if_ne "$peer_address6" echo_wgquick "AllowedIPs=$peer_address6"
+  if_ne "$peer_address6" echo_openwrt_uci "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address6}"
+  if_ne "$peer_address6" echo_mikrotik ":if ([/ip6/route/find dst-address=\"${peer_address6}\" gateway=\"${interface_name}\"]) do={} else={ /ip6/route/add dst-address=\"${peer_address6}\" gateway=\"${interface_name}\" }"
+
+  if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
+    peer_routes="0.0.0.0/0"
+
+    if [[ -n "$peer_address6" ]]; then
+      peer_routes6="::/0"
+    fi
+  fi
+
   for route in $peer_routes; do
     route=$(ip_network "$route")
     echo_wgquick "AllowedIPs=$route"
@@ -372,9 +402,12 @@ emit_config_peer() {
     echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route}"
   done
 
-  if_ne "$WG_DEFAULT_GW" echo_wgquick "AllowedIPs=0.0.0.0/0"
-  if_ne "$WG_DEFAULT_GW" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"0.0.0.0/0\")"
-  if_ne "$WG_DEFAULT_GW" echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=0.0.0.0/0"
+  for route6 in $peer_routes6; do
+    echo_wgquick "AllowedIPs=$route6"
+    echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route6\")"
+    echo_mikrotik ":if ([/ip6/route/find dst-address=\"${route6}\" gateway=\"${interface_name}\"]) do={} else={ /ip6/route/add dst-address=\"${route6}\" gateway=\"${interface_name}\" }"
+    echo_openwrt_uci "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route6}"
+  done
 
   echo
 }
