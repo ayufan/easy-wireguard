@@ -176,7 +176,7 @@ emit_config_interface() {
   echo_openwrt "uci set network.$interface_name.addresses=$interface_address"
 
   if_ne "$interface_address6" echo_wgconf "Address=$interface_address6"
-  if_ne "$interface_address6" echo_mikrotik ":if ([/ip6/address/find address=\"$interface_address6\" interface=\"$interface_name\"]) do={} else={ /ip6/address/add address=\"$interface_address\" interface=\"$interface_name\" }"
+  if_ne "$interface_address6" echo_mikrotik ":if ([/ipv6/address/find address=\"$interface_address6\" interface=\"$interface_name\"]) do={} else={ /ipv6/address/add address=\"$interface_address6/128\" interface=\"$interface_name\" advertise=no }"
   if_ne "$interface_address6" echo_openwrt "uci add_list network.$interface_name.addresses=$interface_address6"
 
   if_ne "$interface_listenport" echo_wgconf "ListenPort=${interface_listenport}"
@@ -263,7 +263,8 @@ emit_config_peer() {
 
   if_ne "$peer_address6" echo_wgconf "AllowedIPs=$peer_address6"
   if_ne "$peer_address6" echo_openwrt "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address6}"
-  if_ne "$peer_address6" echo_mikrotik ":if ([/ip6/route/find dst-address=\"${peer_address6}\" gateway=\"${interface_name}\"]) do={} else={ /ip6/route/add dst-address=\"${peer_address6}\" gateway=\"${interface_name}\" }"
+  if_ne "$peer_address6" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$peer_address6\")"
+  if_ne "$peer_address6" echo_mikrotik ":if ([/ipv6/route/find dst-address=\"${peer_address6}\" gateway=\"${interface_name}\"]) do={} else={ /ipv6/route/add dst-address=\"${peer_address6}\" gateway=\"${interface_name}\" }"
 
   if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
     peer_routes="$peer_routes 0.0.0.0/0"
@@ -284,7 +285,7 @@ emit_config_peer() {
   for route6 in $peer_routes6; do
     echo_wgconf "AllowedIPs=$route6"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route6\")"
-    echo_mikrotik ":if ([/ip6/route/find dst-address=\"${route6}\" gateway=\"${interface_name}\"]) do={} else={ /ip6/route/add dst-address=\"${route6}\" gateway=\"${interface_name}\" }"
+    echo_mikrotik ":if ([/ipv6/route/find dst-address=\"${route6}\" gateway=\"${interface_name}\"]) do={} else={ /ipv6/route/add dst-address=\"${route6}\" gateway=\"${interface_name}\" }"
     echo_openwrt "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route6}"
   done
 
