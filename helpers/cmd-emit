@@ -44,6 +44,11 @@ for arg; do
       MODE=qr
       ;;
 
+    --qr-png)
+      shift
+      MODE=qr_png
+      ;;
+
     --shell)
       shift
       MODE=shell
@@ -338,6 +343,15 @@ qr_mode() {
   fi
 
   eval "$@" | qrencode -t ansiutf8
+}
+
+qr_png_mode() {
+  if [[ -n "$WG_OUTPUT" ]]; then
+    stderr 'Only `--wg-conf` is supported'
+    return 1
+  fi
+
+  eval "$@" | qrencode -t png -o -
 }
 
 shell_mode() {

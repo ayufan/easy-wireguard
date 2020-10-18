@@ -31,8 +31,8 @@ for server_config in "servers/"*.conf; do
       mkdir -p "configs/${client_name}/"
       "$DIR/emit-client" --wg-conf "$server_name" "$client_name" > "configs/${client_name}/${server_name}.conf"
       "$DIR/emit-client" --wg-conf --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.conf"
-      "$DIR/emit-client" --qr "$server_name" "$client_name" > "configs/${client_name}/${server_name}.png"
-      "$DIR/emit-client" --qr --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.png"
+      "$DIR/emit-client" --qr-png "$server_name" "$client_name" > "configs/${client_name}/${server_name}.png"
+      "$DIR/emit-client" --qr-png --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.png"
     fi
   done
 done
