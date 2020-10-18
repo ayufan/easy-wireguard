@@ -188,6 +188,47 @@ require_address_idx() {
   echo "$(itoa "$ip_i")/32"
 }
 
+ip6_network() {
+  local IFS=/
+  local ips=( $1 )
+  local netmask="${ips[1]}"
+
+  local IFS=:
+  local ip=( ${ips[0]} )
+
+  if [[ -z "$netmask" ]] || [[ "$netmask" == 128 ]]; then
+    echo "$ip"
+    return 0
+  fi
+
+  for (( i=7; i>=0; i-- )); do
+    local mask=$(($i*16+16-$netmask))
+
+    if [[ $mask -ge 16 ]]; then
+      ip[$i]=""
+      continue
+    fi
+
+    local mask=$((0xffff << $mask))
+    local ipmask=$((0x${ip[$i]:-0} & $mask))
+    if [[ "$ipmask" != "0" ]]; then
+      ip[$i]=$(printf "%x" $ipmask)
+    else
+      ip[$i]=""
+    fi
+
+    break
+  done
+
+  local ip6="${ip[0]}:${ip[1]}:${ip[2]}:${ip[3]}:${ip[4]}:${ip[5]}:${ip[6]}:${ip[7]}/${netmask}"
+  local ip6=${ip6/::::\//::\/}
+  local ip6=${ip6/::::\//::\/}
+  local ip6=${ip6/:::\//::\/}
+  local ip6=${ip6/\/128/}
+
+  echo "$ip6"
+}
+
 get_address6_prefix() {
   local server_config="$1"
   local peer_config="$2"
@@ -198,13 +239,28 @@ get_address6_prefix() {
 
   local prefix6=$(get_value "$server_config" "Prefix6")
   local disable_ipv6=$(get_value "$peer_config" "DisableIPv6")
+  local idx_i=$(require_value "$peer_config" "AddressIdx")
 
   if [[ -z "$prefix6" ]] || [[ -n "$disable_ipv6" ]]; then
     return 0
   fi
 
-  local key_hash=$(get_value "$peer_config" "PrivateKey" | sha256sum | awk '{print $1}')
-  local ip6="${prefix6}::${key_hash:56:4}:${key_hash:60:4}"
+  # 2001:bc8:628:104b:e:f:g:h
+  # 2001:bc8:628:104b: 64 bits
+  # e: 16 bits
+  # f: 16 bits: an index
+  # g: 16 bits: pk hash 2 bytes
+  # h: 16 bits: pk hash 2 bytes
 
-  echo "${ip6/::::/::}"
+  local IFS=:
+  local ip=( $prefix6 )
+  local netmask=96
+
+  local key_hash=$(get_value "$peer_config" "PrivateKey" | sha256sum | awk '{print $1}')
+
+  ip[5]=$(printf "%x" $idx_i)
+  ip[6]=$(printf "%x" $((0x${key_hash:56:4})))
+  ip[7]=$(printf "%x" $((0x${key_hash:60:4})))
+
+  echo "${ip[0]}:${ip[1]}:${ip[2]}:${ip[3]}:${ip[4]}:${ip[5]}:${ip[6]}:${ip[7]}/${netmask}"
 }
