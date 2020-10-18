@@ -1,7 +1,7 @@
 #!/bin/bash
 
 MODE=echo
-WG_OUTPUT=${WG_OUTPUT:-wg-conf}
+WG_OUTPUT=${WG_OUTPUT}
 WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
 
 APP_NAME="$0"
@@ -11,32 +11,32 @@ for arg; do
   case $arg in
     --wg-conf)
       shift
-      export WG_OUTPUT=wg-conf
+      WG_OUTPUT=
       ;;
 
     --wg-quick)
       shift
-      export WG_OUTPUT=wg-quick
+      WG_OUTPUT=wg-quick
       ;;
 
     --openwrt)
       shift
-      export WG_OUTPUT=openwrt
+      WG_OUTPUT=openwrt
       ;;
 
     --mikrotik)
       shift
-      export WG_OUTPUT=mikrotik
+      WG_OUTPUT=mikrotik
       ;;
 
     --default)
       shift
-      export WG_DEFAULT_GW=yes
+      WG_DEFAULT_GW=yes
       ;;
 
     --echo)
       shift
-      export MODE=echo
+      MODE=echo
       ;;
 
     --qr)
@@ -90,7 +90,7 @@ usage() {
 }
 
 echo_wgconf() {
-  if [[ "$WG_OUTPUT" == "wg-conf" ]] || [[ "$WG_OUTPUT" == "wg-quick" ]]; then
+  if [[ -z "$WG_OUTPUT" ]] || [[ "$WG_OUTPUT" == "wg-quick" ]]; then
     echo "$@"
   fi
 }
@@ -186,7 +186,7 @@ emit_config_interface() {
   if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv4.ip_forward=1; iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $interface_default_gateway -j MASQUERADE"
   if_ne "$interface_default_gateway" echo_wgconf "PostDown=iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $interface_default_gateway -j MASQUERADE"
 
-  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv6.conf.all.fowarding=1; iptables -A FORWARD -i %i -j ACCEPT"
+  if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostUp=sysctl net.ipv6.conf.all.forwarding=1; ip6tables -A FORWARD -i %i -j ACCEPT"
   if_ne "$interface_address6" if_ne "$interface_default_gateway" echo_wgconf "PostDown=ip6tables -D FORWARD -i %i -j ACCEPT"
 
   if_ne "$peer_dns" echo_wgconf "DNS=$peer_dns"
@@ -308,10 +308,20 @@ echo_mode() {
 }
 
 qr_mode() {
+  if [[ -n "$WG_OUTPUT" ]]; then
+    stderr 'Only `--wg-conf` is supported'
+    return 1
+  fi
+
   eval "$@" | qrencode -t ansiutf8
 }
 
 shell_mode() {
+  if [[ -z "$WG_OUTPUT" ]]; then
+    stderr 'The `--wg-conf` is not supported'
+    return 1
+  fi
+
   (
     echo_wgquick 'set -x'
     echo_openwrt 'set -x'
@@ -320,6 +330,11 @@ shell_mode() {
 }
 
 ssh_mode() {
+  if [[ -z "$WG_OUTPUT" ]]; then
+    stderr 'The `--wg-conf` is not supported'
+    return 1
+  fi
+
   echo "ssh $SSH_SERVER"
 
   (

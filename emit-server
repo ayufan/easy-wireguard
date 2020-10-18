@@ -8,6 +8,7 @@ source "$DIR/helpers/functions"
 source "$DIR/helpers/cmd-emit"
 
 emit_server() {
+  emit_config_pre
   emit_config_interface "$server_config"
 
   for other_server_config in "servers/"*.conf; do
