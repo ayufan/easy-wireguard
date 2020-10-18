@@ -17,16 +17,23 @@ for server_config in "servers/"*.conf; do
 
   echo "$server_name..."
 
-  "$DIR/emit-server" --wg-conf "$server_name" > "configs/${server_name}.conf"
+  server_updatecmd=$(get_value "$server_config" "UpdateCmd")
+  if [[ -z "$server_updatecmd" ]]; then
+    "$DIR/emit-server" --wg-conf "$server_name" > "configs/${server_name}.conf"
+  fi
 
   for client_config in "clients/"*.conf; do
-    echo "$server_name:$client_name..."
-
     client_name="$(basename "$client_config" .conf)"
+    client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
 
-    mkdir -p "configs/${client_name}/"
-    "$DIR/emit-client" --wg-conf "$server_name" "$client_name" > "configs/${client_name}/${server_name}.conf"
-    "$DIR/emit-client" --wg-conf --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.conf"
+    if [[ -z "$client_updatecmd" ]]; then
+      echo "$server_name:$client_name..."
+      mkdir -p "configs/${client_name}/"
+      "$DIR/emit-client" --wg-conf "$server_name" "$client_name" > "configs/${client_name}/${server_name}.conf"
+      "$DIR/emit-client" --wg-conf --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.conf"
+      "$DIR/emit-client" --qr "$server_name" "$client_name" > "configs/${client_name}/${server_name}.png"
+      "$DIR/emit-client" --qr --default "$server_name" "$client_name" > "configs/${client_name}/${server_name}def.png"
+    fi
   done
 done
 
