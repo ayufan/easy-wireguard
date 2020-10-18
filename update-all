@@ -22,23 +22,6 @@ match() {
   return 1
 }
 
-echo "Servers:"
-for server_config in "servers/"*.conf; do
-  server_name="$(basename "$server_config" .conf)"
-
-  if ! match "$server_name" "$@"; then
-    continue
-  fi
-
-  server_updatecmd=$(get_value "$server_config" "UpdateCmd")
-
-  if [[ -n "$server_updatecmd" ]]; then
-    echo "$server_name... "
-    "$DIR/emit-server" $server_updatecmd "$server_name"
-  fi
-done
-
-echo
 echo "Clients:"
 
 for client_config in "clients/"*.conf; do
@@ -67,5 +50,25 @@ for client_config in "clients/"*.conf; do
     fi
   done
 done
+
+echo
+echo "Servers:"
+
+for server_config in "servers/"*.conf; do
+  server_name="$(basename "$server_config" .conf)"
+
+  if ! match "$server_name" "$@"; then
+    continue
+  fi
+
+  server_updatecmd=$(get_value "$server_config" "UpdateCmd")
+
+  if [[ -n "$server_updatecmd" ]]; then
+    echo "$server_name... "
+    "$DIR/emit-server" $server_updatecmd "$server_name"
+  fi
+done
+
+echo
 
 echo Done.
