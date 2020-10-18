@@ -124,6 +124,12 @@ if_ne() {
   [[ -z "$key" ]] || [[ "$key" == "no" ]] || "$@"
 }
 
+unless_disabled() {
+  key="$1"
+  shift
+  [[ "$key" == "0" ]] || "$@"
+}
+
 emit_config_pre() {
   export interface_name="wg-${server_name}"
   if [[ "$WG_OUTPUT" == "openwrt" ]]; then
@@ -200,7 +206,7 @@ emit_config_interface() {
   if_ne "$peer_mtu" echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] mtu=\"$peer_mtu\""
   if_ne "$peer_mtu" echo_openwrt "uci set network.$interface_name.mtu=$peer_mtu"
 
-  echo_openwrt "uci show network | grep '=wireguard_${interface_name}' | cut -d= -f1 | xargs -rn1 uci delete"
+  echo_openwrt "uci show network | grep '=wireguard_${interface_name}$' | cut -d= -f1 | xargs -rn1 uci delete"
 
   echo
 }
@@ -223,6 +229,7 @@ emit_config_peer() {
   local peer_address6=$(get_value "$peer_config" "Address6")
   local peer_routes=$(get_value "$peer_config" "Routes_${interface_config_name}" "Routes")
   local peer_routes6=$(get_value "$peer_config" "Routes6_${interface_config_name}" "Routes6")
+  local interface_route_allowed_ips=$(get_value "$interface_config" "RouteAllowedIPs")
   local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
@@ -231,6 +238,10 @@ emit_config_peer() {
 
   if [[ "$peer_disallowed" == 0 ]]; then
     return 0
+  fi
+
+  if [[ -z "$interface_route_allowed_ips" ]]; then
+    interface_route_allowed_ips=1
   fi
 
   if [[ -z "$peer_address" ]]; then
@@ -269,13 +280,13 @@ emit_config_peer() {
 
   echo_wgconf "AllowedIPs=$peer_address"
   echo_openwrt "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address}"
-  echo_openwrt "uci set network.${interface_name}_${peer_name}.route_allowed_ips=1"
-  echo_mikrotik ":if ([/ip/route/find dst-address=\"${peer_address}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${peer_address}\" gateway=\"${interface_name}\" }"
+  echo_openwrt "uci set network.${interface_name}_${peer_name}.route_allowed_ips=${interface_route_allowed_ips}"
+  unless_disabled "$interface_route_allowed_ips" echo_mikrotik ":if ([/ip/route/find dst-address=\"${peer_address}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${peer_address}\" gateway=\"${interface_name}\" }"
 
   if_ne "$peer_address6" echo_wgconf "AllowedIPs=$peer_address6"
   if_ne "$peer_address6" echo_openwrt "uci set network.${interface_name}_${peer_name}.allowed_ips=${peer_address6}"
   if_ne "$peer_address6" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$peer_address6\")"
-  if_ne "$peer_address6" echo_mikrotik ":if ([/ipv6/route/find dst-address=\"${peer_address6}\" gateway=\"${interface_name}\"]) do={} else={ /ipv6/route/add dst-address=\"${peer_address6}\" gateway=\"${interface_name}\" }"
+  if_ne "$peer_address6" unless_disabled "$interface_route_allowed_ips" echo_mikrotik ":if ([/ipv6/route/find dst-address=\"${peer_address6}\" gateway=\"${interface_name}\"]) do={} else={ /ipv6/route/add dst-address=\"${peer_address6}\" gateway=\"${interface_name}\" }"
 
   if [[ "$WG_DEFAULT_GW" == "yes" ]]; then
     peer_routes="$peer_routes 0.0.0.0/0"
@@ -289,7 +300,7 @@ emit_config_peer() {
     route=$(ip_network "$route")
     echo_wgconf "AllowedIPs=$route"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route\")"
-    echo_mikrotik ":if ([/ip/route/find dst-address=\"${route}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${route}\" gateway=\"${interface_name}\" }"
+    unless_disabled "$interface_route_allowed_ips" echo_mikrotik ":if ([/ip/route/find dst-address=\"${route}\" gateway=\"${interface_name}\"]) do={} else={ /ip/route/add dst-address=\"${route}\" gateway=\"${interface_name}\" }"
     echo_openwrt "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route}"
   done
 
@@ -297,7 +308,7 @@ emit_config_peer() {
     route6=$(ip6_network "$route6")
     echo_wgconf "AllowedIPs=$route6"
     echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address=([get [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] allowed-address], \"$route6\")"
-    echo_mikrotik ":if ([/ipv6/route/find dst-address=\"${route6}\" gateway=\"${interface_name}\"]) do={} else={ /ipv6/route/add dst-address=\"${route6}\" gateway=\"${interface_name}\" }"
+    unless_disabled "$interface_route_allowed_ips" echo_mikrotik ":if ([/ipv6/route/find dst-address=\"${route6}\" gateway=\"${interface_name}\"]) do={} else={ /ipv6/route/add dst-address=\"${route6}\" gateway=\"${interface_name}\" }"
     echo_openwrt "uci add_list network.${interface_name}_${peer_name}.allowed_ips=${route6}"
   done
 
