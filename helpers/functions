@@ -24,11 +24,16 @@ get_value() {
     source "$config"
 
     for i; do
+      shift
       if declare -p "$i" &>/dev/null; then
         echo "${!i}"
         return
+      elif [[ "$i" == "-" ]]; then
+        break
       fi
     done
+
+    echo "$@"
   )
 }
 
@@ -263,4 +268,23 @@ get_address6_prefix() {
   ip[7]=$(printf "%x" $((0x${key_hash:60:4})))
 
   echo "${ip[0]}:${ip[1]}:${ip[2]}:${ip[3]}:${ip[4]}:${ip[5]}:${ip[6]}:${ip[7]}/${netmask}"
+}
+
+peer_allowed() {
+  local interface_config="$2"
+  local interface_config_name=$(basename "$interface_config" .conf)
+
+  local peer_config="$1"
+  local peer_name=$(basename "$peer_config" .conf)
+
+  local interface_strict=$(get_value "$peer_config" "Strict")
+  local peer_allowed=$(get_value "$peer_config" "Interface_${interface_config_name}" "Interface")
+
+  if [[ "$interface_strict" ]]; then
+    # In a strict mode peer needs to be allowed
+    [[ "$peer_allowed" == "1" ]]
+  else
+    # We accept, `nil: default`, or `1`
+    [[ "$peer_allowed" != "0" ]]
+  fi
 }

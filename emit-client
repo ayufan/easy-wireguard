@@ -35,4 +35,9 @@ if [[ ! -e "$client_config" ]]; then
   exit 1
 fi
 
+if ! peer_allowed "$client_config" "$server_config"; then
+  stderr "The $client_config cannot connect to $server_config."
+  exit 1
+fi
+
 "${MODE}_mode" emit_client

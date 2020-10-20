@@ -233,12 +233,7 @@ emit_config_peer() {
   local interface_keepalive=$(get_value "$interface_config" "PersistentKeepalive")
   local peer_endpoint=$(get_value "$peer_config" "Endpoint")
   local peer_listenport=$(get_value "$peer_config" "ListenPort")
-  local peer_disallowed=$(get_value "$peer_config" "Interface_${interface_config_name}")
   local psk=$(get_psk "$peer_config" "$interface_config")
-
-  if [[ "$peer_disallowed" == 0 ]]; then
-    return 0
-  fi
 
   if [[ -z "$interface_route_allowed_ips" ]]; then
     interface_route_allowed_ips=1

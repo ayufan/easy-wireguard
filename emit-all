@@ -26,6 +26,10 @@ for server_config in "servers/"*.conf; do
     client_name="$(basename "$client_config" .conf)"
     client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
 
+    if ! peer_allowed "$client_config" "$server_config"; then
+      continue
+    fi
+
     if [[ -z "$client_updatecmd" ]]; then
       echo "$server_name:$client_name..."
       mkdir -p "configs/${client_name}/"

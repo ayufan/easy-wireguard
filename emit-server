@@ -14,10 +14,22 @@ emit_server() {
   for other_server_config in "servers/"*.conf; do
     [[ "$other_server_config" == "$server_config" ]] && continue
 
+    if ! peer_allowed "$other_server_config" "$server_config"; then
+      continue
+    fi
+
+    if ! peer_allowed "$server_config" "$other_server_config"; then
+      continue
+    fi
+
     emit_config_peer "$other_server_config" "$server_config"
   done
 
   for client_config in "clients/"*.conf; do
+    if ! peer_allowed "$client_config" "$server_config"; then
+      continue
+    fi
+
     emit_config_peer "$client_config" "$server_config"
   done
 

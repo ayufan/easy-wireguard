@@ -34,9 +34,8 @@ for client_config in "clients/"*.conf; do
   for server_config in "servers/"*.conf; do
     server_name="$(basename "$server_config" .conf)"
     client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
-    client_disallowed=$(get_value "$client_config" "Interface_$server_name")
 
-    if [[ "$client_disallowed" == 0 ]]; then
+    if ! peer_allowed "$client_config" "$server_config"; then
       continue
     fi
 
