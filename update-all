@@ -41,7 +41,7 @@ for client_config in "clients/"*.conf; do
 
     if [[ -n "$client_updatecmd" ]]; then
       echo "$client_name:$server_name... "
-      "$DIR/emit-client" $client_updatecmd "$server_name" "$client_name"
+      "$DIR/emit-client" $client_updatecmd "$server_name" "$client_name" || true
     fi
   done
 done
@@ -60,7 +60,7 @@ for server_config in "servers/"*.conf; do
 
   if [[ -n "$server_updatecmd" ]]; then
     echo "$server_name... "
-    "$DIR/emit-server" $server_updatecmd "$server_name"
+    "$DIR/emit-server" $server_updatecmd "$server_name" || true
   fi
 done
 
