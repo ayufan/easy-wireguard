@@ -187,7 +187,7 @@ emit_config_interface() {
   echo_openwrt "uci set network.$interface_name.addresses=$interface_address"
 
   if_ne "$interface_address6" echo_wgconf "Address=$interface_address6"
-  if_ne "$interface_address6" echo_mikrotik ":if ([/ipv6/address/find address=\"$interface_address6\" interface=\"$interface_name\"]) do={} else={ /ipv6/address/add address=\"$interface_address6/128\" interface=\"$interface_name\" advertise=no }"
+  if_ne "$interface_address6" echo_mikrotik ":if ([/ipv6/address/find address=\"$interface_address6\" interface=\"$interface_name\"]) do={} else={ /ipv6/address/add address=\"$interface_address6\" interface=\"$interface_name\" advertise=no }"
   if_ne "$interface_address6" echo_openwrt "uci add_list network.$interface_name.addresses=$interface_address6"
 
   if_ne "$interface_listenport" echo_wgconf "ListenPort=${interface_listenport}"
@@ -265,7 +265,7 @@ emit_config_peer() {
   if_ne "$psk" echo_openwrt "uci set network.${interface_name}_${peer_name}.preshared_key=${psk}"
 
   if_ne "$peer_endpoint" echo_wgconf "Endpoint=$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}"
-  if_ne "$peer_endpoint" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] comment=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\" endpoint=\"$peer_endpoint:${peer_listenport:-$DEFAULT_LISTEN_PORT}\""
+  if_ne "$peer_endpoint" echo_mikrotik "/interface/wireguard/peers/set [find interface=\"$interface_name\" public-key=\"$peer_publickey\"] comment=\"$peer_endpoint\" endpoint-address=\"$peer_endpoint\" endpoint-port=\"${peer_listenport:-$DEFAULT_LISTEN_PORT}\""
   if_ne "$peer_endpoint" echo_openwrt "uci set network.${interface_name}_${peer_name}.endpoint_host=${peer_endpoint}"
   if_ne "$peer_endpoint" echo_openwrt "uci set network.${interface_name}_${peer_name}.endpoint_port=${peer_listenport:-$DEFAULT_LISTEN_PORT}"
 
