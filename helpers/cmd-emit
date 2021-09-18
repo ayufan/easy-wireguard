@@ -248,7 +248,7 @@ emit_config_peer() {
     peer_address6=""
     peer_routes6=""
   elif [[ -z "$peer_address6" ]]; then
-    peer_address6="$(get_address6_prefix "$interface_config" "$peer_config")"
+    peer_address6="$(get_address6_prefix "$interface_config" "$peer_config" full)"
   fi
   peer_address6=$(ip6_network "$peer_address6")
 
