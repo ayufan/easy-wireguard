@@ -124,42 +124,6 @@ ip_network() {
   echo "$(itoa "$ip")/$netmask"
 }
 
-alloc_address() {
-  local node_ip="$1"
-  local node_publickey="$2"
-  local startip=$(atoi "$3")
-  local endip=$(atoi "$4")
-
-  for (( i=$startip; i<=$endip; i=i+1 )); do
-    local ip=$(itoa $i)
-    local ipfile="addresses/$ip.node"
-    local ipfile_ip=""
-    local ipfile_publickey=""
-    local ipfile_rest=""
-
-    if [[ -e "$ipfile" ]]; then
-      read "-d\n" ipfile_ip ipfile_publickey ipfile_rest < "$ipfile"
-    fi
-
-    if [[ "$ipfile_ip" == "$node_ip" ]] && [[ "$ipfile_publickey" == "$node_publickey" ]]; then
-      # return existing IP
-      echo "$ip"
-      return 0
-    fi
-
-    if [[ -z "$ipfile_ip" ]] || [[ "$ipfile_ip" == "$node_ip" ]] || [[ "$ipfile_publickey" == "$node_publickey" ]]; then
-      # allocate or rewrite IP-file
-      echo "$node_ip" > $ipfile
-      echo "$node_publickey" >> $ipfile
-      echo "$ip"
-      return 0
-    fi
-  done
-
-  echo "No free addresses" 1>&2
-  return 1
-}
-
 next_address_idx() {
   [[ -f clients/index ]] || echo 0 > clients/index
 
