@@ -162,7 +162,7 @@ emit_config_interface() {
   fi
 
   if [[ -z "$interface_address" ]]; then
-    interface_address="$(require_address_idx "$peer_config" "$interface_config")"
+    interface_address="$(get_address_prefix "$peer_config" "$interface_config")"
   fi
 
   if [[ -z "$interface_address6" ]]; then
@@ -240,7 +240,7 @@ emit_config_peer() {
   fi
 
   if [[ -z "$peer_address" ]]; then
-    peer_address="$(require_address_idx "$interface_config" "$peer_config")"
+    peer_address="$(get_address_prefix "$interface_config" "$peer_config")"
   fi
   peer_address=$(ip_network "$peer_address")
 
