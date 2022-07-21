@@ -3,6 +3,7 @@
 MODE=echo
 WG_OUTPUT=${WG_OUTPUT}
 WG_DEFAULT_GW=${WG_DEFAULT_GW:-no}
+WG_UP=yes
 
 APP_NAME="$0"
 SHOW_HELP=
@@ -58,6 +59,16 @@ for arg; do
       SSH_SERVER="$2"
       shift 2
       MODE=ssh
+      ;;
+
+    --up)
+      WG_UP=yes
+      shift
+      ;;
+
+    --down)
+      WG_UP=no
+      shift
       ;;
 
     -h|--help)
@@ -317,8 +328,11 @@ emit_config_post() {
   local interface_default_gateway=$(get_value "$interface_config" "DefaultGateway")
 
   echo_wgquick "EOF"
-  echo_wgquick "systemctl enable wg-quick@${interface_name}.service"
-  echo_wgquick "systemctl restart wg-quick@${interface_name}.service"
+
+  if [[ "$WG_UP" == "yes" ]]; then
+    echo_wgquick "systemctl enable wg-quick@${interface_name}.service"
+    echo_wgquick "systemctl restart wg-quick@${interface_name}.service"
+  fi
 
   if [[ -n "$interface_address6" ]] && [[ -n "$interface_default_gateway" ]]; then
     echo_wgquick "cat <<EOF > /etc/ndppd.conf"
@@ -327,14 +341,18 @@ emit_config_post() {
     echo_wgquick "}"
     echo_wgquick "EOF"
 
-    echo_wgquick "systemctl enable ndppd.service"
-    echo_wgquick "systemctl restart ndppd.service"
+    if [[ "$WG_UP" == "yes" ]]; then
+      echo_wgquick "systemctl enable ndppd.service"
+      echo_wgquick "systemctl restart ndppd.service"
+    fi
   fi
 
   echo_openwrt "uci commit"
 
-  echo_openwrt "luci-reload"
-  echo_openwrt "ifup ${interface_name}"
+  if [[ "$WG_UP" == "yes" ]]; then
+    echo_openwrt "luci-reload"
+    echo_openwrt "ifup ${interface_name}"
+  fi
   echo_openwrt "grep -q /usr/bin/wireguard_watchdog /etc/crontabs/root || echo '* * * * * /usr/bin/wireguard_watchdog' >> /etc/crontabs/root"
 }
 
