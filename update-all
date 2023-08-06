@@ -22,48 +22,70 @@ match() {
   return 1
 }
 
-echo "Clients:"
+update_clients() {
+  echo "Clients:"
+  for client_config in "clients/"*.conf; do
+    client_name="$(basename "$client_config" .conf)"
 
-for client_config in "clients/"*.conf; do
-  client_name="$(basename "$client_config" .conf)"
-
-  if ! match "$client_name" "$@"; then
-    continue
-  fi
-
-  for server_config in "servers/"*.conf; do
-    server_name="$(basename "$server_config" .conf)"
-    client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
-
-    if ! peer_allowed "$client_config" "$server_config"; then
+    if ! match "$client_name" "$@"; then
       continue
     fi
 
-    if [[ -n "$client_updatecmd" ]]; then
-      echo "$client_name:$server_name... "
-      "$DIR/emit-client" $client_updatecmd "$server_name" "$client_name" || true
+    for server_config in "servers/"*.conf; do
+      server_name="$(basename "$server_config" .conf)"
+      client_updatecmd=$(get_value "$client_config" "UpdateCmd_$server_name" "UpdateCmd")
+
+      if ! peer_allowed "$client_config" "$server_config"; then
+        continue
+      fi
+
+      if [[ -n "$client_updatecmd" ]]; then
+        echo "$client_name:$server_name... "
+        "$DIR/emit-client" $client_updatecmd "$server_name" "$client_name" || true
+      fi
+    done
+  done
+  echo
+}
+
+update_servers() {
+  shift
+  echo "Servers:"
+  for server_config in "servers/"*.conf; do
+    server_name="$(basename "$server_config" .conf)"
+
+    if ! match "$server_name" "$@"; then
+      continue
+    fi
+
+    server_updatecmd=$(get_value "$server_config" "UpdateCmd")
+
+    if [[ -n "$server_updatecmd" ]]; then
+      echo "$server_name... "
+      "$DIR/emit-server" $server_updatecmd "$server_name" || true
     fi
   done
-done
+  echo
+}
 
-echo
-echo "Servers:"
+case "$1" in
+  servers)
+    update_servers "$@"
+    ;;
 
-for server_config in "servers/"*.conf; do
-  server_name="$(basename "$server_config" .conf)"
+  clients)
+    update_clients "$@"
+    ;;
 
-  if ! match "$server_name" "$@"; then
-    continue
-  fi
+  all)
+    update_clients "$@"
+    update_servers "$@"
+    ;;
 
-  server_updatecmd=$(get_value "$server_config" "UpdateCmd")
-
-  if [[ -n "$server_updatecmd" ]]; then
-    echo "$server_name... "
-    "$DIR/emit-server" $server_updatecmd "$server_name" || true
-  fi
-done
-
-echo
+  *)
+    echo "$0 <all/servers/clients> [client name...]"
+    exit 1
+    ;;
+esac
 
 echo Done.

@@ -41,4 +41,3 @@ for server_config in "servers/"*.conf; do
   done
 done
 
-echo Done.
