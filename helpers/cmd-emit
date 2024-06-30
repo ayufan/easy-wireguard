@@ -80,7 +80,7 @@ for arg; do
       echo "unknown $arg."
       exit 1
       ;;
-    
+
     *)
       break
       ;;
@@ -97,6 +97,7 @@ usage() {
   stderr " --ssh USER@HOST: upload ssh config to remote machine"
   stderr ""
   stderr "Options:"
+  stderr " --default: generate config with default gateway"
   stderr " --wg-conf: output wg-quick compatible configuration (default)"
   stderr " --wg-quick: output wg-quick compatible commands"
   stderr " --openwrt: output openwrt compatible configuration"
