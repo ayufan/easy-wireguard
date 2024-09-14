@@ -191,6 +191,7 @@ emit_config_interface() {
   echo_wgconf "PrivateKey=$interface_privatekey"
   echo_mikrotik "/interface/wireguard/set [find name=\"$interface_name\"] private-key=\"$interface_privatekey\""
 
+  if_ne "$interface_mtu" echo_wgconf "MTU=$interface_mtu"
   if_ne "$interface_fwmark" echo_wgconf "FwMark=$interface_fwmark"
   if_ne "$interface_fwmark" echo_openwrt "uci set network.$interface_name.fwmark=$interface_fwmark"
 
