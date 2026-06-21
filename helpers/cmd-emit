@@ -61,6 +61,11 @@ for arg; do
       MODE=ssh
       ;;
 
+    --ssh-opts)
+      SSH_OPTS="$2"
+      shift 2
+      ;;
+
     --up)
       WG_UP=yes
       shift
@@ -405,5 +410,5 @@ ssh_mode() {
     echo_wgquick 'set -x'
     echo_openwrt 'set -x'
     eval "$@"
-  ) | ssh -T "$SSH_SERVER"
+  ) | ssh $SSH_OPTS -T "$SSH_SERVER"
 }
